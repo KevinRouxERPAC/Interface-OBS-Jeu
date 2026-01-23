@@ -2,6 +2,22 @@ const config = require('./config');
 const Logger = require('./logger');
 const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion } = require('./validators');
 
+// Paramètres Google Sheets (optionnels)
+const {
+  googleSheets: {
+    id: sheetId,
+    serviceAccountEmail: saEmail,
+    serviceAccountKey: saKey,
+    ranges: {
+      questions: questionsRange,
+      themes: themesRange,
+      categories: categoriesRange,
+      levels: levelsRange,
+      matieres: matieresRange
+    }
+  }
+} = config;
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
