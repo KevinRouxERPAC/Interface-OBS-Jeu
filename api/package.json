@@ -1,8 +1,29 @@
 {
+  "name": "quiz-overlay-api",
+  "version": "1.0.0",
+  "description": "API serveur pour Quiz Overlay OBS - synchronisation admin/overlay et gestion des questions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "keywords": [
+    "obs",
+    "overlay",
+    "quiz",
+    "game-show",
+    "streaming"
+  ],
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^16.4.7",
-    "express": "^5.2.1",
-    "googleapis": "^170.1.0"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "googleapis": "^170.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

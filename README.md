@@ -2,6 +2,15 @@
 
 Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questions, le timer et la révélation des réponses. Compatible avec une source navigateur OBS (fond transparent).
 
+> **🆕 v1.1 - Améliorations** : Sécurité renforcée (CORS + API Key), architecture refactorisée, logging centralisé, validation des données, documentation complète.
+
+## 📚 Documentation rapide
+
+- **[🚀 QUICK_START.md](./QUICK_START.md)** - COMMENCEZ PAR LÀ ! (30 secondes)
+- [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - Endpoints API, configuration, Google Sheets
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - Architecture technique 
+- [SECURITY_CHECKLIST.md](./SECURITY_CHECKLIST.md) - Sécurité et bonnes pratiques
+
 ## Structure
 
 - overlay/ : fichiers affichés dans la source navigateur OBS
