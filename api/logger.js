@@ -14,7 +14,7 @@ class Logger {
     this.logLevel = LOG_LEVELS[logLevel] || LOG_LEVELS.info;
   }
 
-  private formatMessage(level, context, message, data) {
+  formatMessage(level, context, message, data) {
     const timestamp = new Date().toISOString();
     const levelStr = level.toUpperCase().padEnd(5);
     const contextStr = context ? `[${context}]` : '';
