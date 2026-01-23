@@ -1,0 +1,6 @@
+[
+  { "id": "1", "name": "Géographie", "idMatiere": "1" },
+  { "id": "2", "name": "Sciences", "idMatiere": "2" },
+  { "id": "3", "name": "Histoire", "idMatiere": "3" },
+  { "id": "4", "name": "Arts", "idMatiere": "4" }
+]
