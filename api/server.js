@@ -1,4 +1,7 @@
-require('dotenv').config();
+const config = require('./config');
+const Logger = require('./logger');
+const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion } = require('./validators');
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -6,51 +9,81 @@ const path = require('path');
 const { google } = require('googleapis');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const logger = new Logger(config.logLevel);
 const questionsPath = path.join(__dirname, '..', 'data', 'questions.json');
-const sheetId = process.env.GOOGLE_SHEETS_ID;
-const questionsRange = process.env.GOOGLE_SHEETS_QUESTIONS_RANGE || 'Questions!A2:J';
-const themesRange = process.env.GOOGLE_SHEETS_THEMES_RANGE || 'Theme!A2:D';
-const categoriesRange = process.env.GOOGLE_SHEETS_CATEGORIES_RANGE || 'Category!A2:E';
-const levelsRange = process.env.GOOGLE_SHEETS_LEVELS_RANGE || 'Level!A2:B';
-const matieresRange = process.env.GOOGLE_SHEETS_MATIERES_RANGE || 'Matiere!A2:B';
-const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 
-let lastCommand = { id: 0, cmd: null };
+let lastCommand = { id: 0, cmd: null, timestamp: 0 };
 let overlayState = { question: null, timer: null, selectedIndex: null, timestamp: 0 };
 
-// Configuration CORS plus permissive pour OBS
+// Configuration CORS sécurisée
 const corsOptions = {
-  origin: '*',
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origin (mobile, desktop apps)
+    if (!origin || config.allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn('CORS', `Accès non autorisé depuis: ${origin}`);
+      callback(new Error('CORS non autorisé pour cette origine'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Cache-Control'],
+  allowedHeaders: ['Content-Type', 'X-API-Key'],
   credentials: false
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Middleware de validation de la clé API
+const validateApiKey = (req, res, next) => {
+  // En développement, la clé API est optionnelle si pas configurée
+  if (config.isDevelopment && !config.apiKey) {
+    logger.debug('API', 'Mode développement sans clé API requise');
+    return next();
+  }
+
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey || apiKey !== config.apiKey) {
+    logger.warn('API', 'Tentative d\'accès sans clé API valide');
+    return res.status(401).json({ error: 'Clé API invalide ou manquante' });
+  }
+  next();
+};
+
+// Middleware d'erreur CORS
+app.use((err, req, res, next) => {
+  if (err.message === 'CORS non autorisé pour cette origine') {
+    return res.status(403).json({ error: 'Accès non autorisé' });
+  }
+  next(err);
+});
+
 // Servir les fichiers statiques
 app.use('/overlay', express.static(path.join(__dirname, '..', 'overlay')));
 app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 app.use('/data', express.static(path.join(__dirname, '..', 'data')));
 
-// Command bus simple (fallback pour OBS ou navigateurs sans BroadcastChannel partagé)
-app.post('/command', (req, res) => {
+// Health check (publique)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Command bus - PROTÉGÉ par API Key
+app.post('/command', validateApiKey, (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Commande invalide' });
   }
-  lastCommand = { id: lastCommand.id + 1, cmd: req.body };
+  lastCommand = { id: lastCommand.id + 1, cmd: req.body, timestamp: Date.now() };
   res.json({ ok: true, id: lastCommand.id });
 });
 
-app.get('/command', (_req, res) => {
+// Lecture des commandes - PROTÉGÉ par API Key
+app.get('/command', validateApiKey, (_req, res) => {
   res.json(lastCommand);
 });
 
-// État de l'overlay (utilisé par admin pour afficher l'état)
-app.post('/state', (req, res) => {
+// État de l'overlay - PROTÉGÉ par API Key
+app.post('/state', validateApiKey, (req, res) => {
   if (!req.body) {
     return res.status(400).json({ error: 'État invalide' });
   }
@@ -58,7 +91,7 @@ app.post('/state', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/state', (_req, res) => {
+app.get('/state', validateApiKey, (_req, res) => {
   res.json(overlayState);
 });
 
@@ -276,6 +309,7 @@ app.get('/random', async (req, res) => {
       }
       
       if (!questions.length) {
+        logger.warn('API', 'Aucune question trouvée avec critères', { levelId, categoryId, themeId });
         return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
       }
       
@@ -284,13 +318,45 @@ app.get('/random', async (req, res) => {
 
     // Fallback JSON local
     const questions = loadQuestions();
-    return res.json(pickRandom(questions));
+    const selected = pickRandom(questions);
+    if (!selected) {
+      return res.status(404).json({ error: 'Aucune question disponible' });
+    }
+    return res.json(selected);
   } catch (err) {
-    console.error(err);
+    logger.error('API', `Erreur chargement questions: ${err.message}`);
     res.status(500).json({ error: 'Impossible de charger les questions' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API quiz démarrée sur http://localhost:${PORT}`);
+// Middleware d'erreur global (DOIT être à la fin)
+app.use((err, req, res, next) => {
+  logger.error('SERVER', `Erreur non gérée: ${err.message}`);
+  res.status(500).json({ error: 'Erreur serveur interne' });
+});
+
+// Démarrage du serveur
+const server = app.listen(config.port, () => {
+  logger.info('SERVER', `API quiz démarrée`, { 
+    port: config.port, 
+    env: config.nodeEnv,
+    origins: config.allowedOrigins 
+  });
+});
+
+// Gestion des arrêts gracieux
+process.on('SIGTERM', () => {
+  logger.info('SERVER', 'Signal SIGTERM reçu, arrêt gracieux...');
+  server.close(() => {
+    logger.info('SERVER', 'Serveur arrêté');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SERVER', 'Signal SIGINT reçu, arrêt gracieux...');
+  server.close(() => {
+    logger.info('SERVER', 'Serveur arrêté');
+    process.exit(0);
+  });
 });

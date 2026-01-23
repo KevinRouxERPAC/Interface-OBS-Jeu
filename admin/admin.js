@@ -1,5 +1,8 @@
 (() => {
   const channelName = 'quiz-control';
+  const API_URL = 'http://localhost:3000';
+  const API_KEY = localStorage.getItem('quiz-api-key') || ''; // Clé API optionnelle
+  
   const btnStartSelection = document.getElementById('btn-start-selection');
   const btnLaunchQuestion = document.getElementById('btn-launch-question');
   const btnReveal = document.getElementById('btn-reveal');
@@ -26,6 +29,15 @@
   const categoriesGrid = document.getElementById('categories-grid');
   const themeDisplay = document.getElementById('theme-display');
 
+  // Fonction utilitaire pour envoyer des requêtes avec la clé API
+  function fetchWithApiKey(url, options = {}) {
+    const headers = { ...options.headers };
+    if (API_KEY) {
+      headers['X-API-Key'] = API_KEY;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
   function initChannel() {
     if ('BroadcastChannel' in window) {
       channel = new BroadcastChannel(channelName);
@@ -48,7 +60,7 @@
     console.log('[ADMIN] Démarrage du polling d\'état');
     setInterval(async () => {
       try {
-        const res = await fetch('http://localhost:3000/state');
+        const res = await fetchWithApiKey(`${API_URL}/state`);
         if (!res.ok) return;
         const state = await res.json();
         if (!state || !state.question) return;
@@ -68,7 +80,7 @@
     console.log('[ADMIN] Envoi commande:', cmd);
     
     // Envoi via serveur (PRINCIPAL pour OBS)
-    fetch('http://localhost:3000/command', {
+    fetchWithApiKey(`${API_URL}/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cmd)

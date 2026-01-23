@@ -2,11 +2,15 @@
   const DEFAULT_DURATION = 30;
   const channelName = 'quiz-control';
   const POLL_INTERVAL_MS = 500; // 500ms pour OBS
-  const COMMAND_POLL_URL = 'http://localhost:3000/command';
+  const API_URL = 'http://localhost:3000';
+  const API_KEY = localStorage.getItem('quiz-api-key') || ''; // Clé API optionnelle
+  const COMMAND_POLL_URL = `${API_URL}/command`;
+  
   let lastCommandRaw = null;
   let lastServerCommandId = 0;
   let lastErrorLog = 0;
   const ERROR_LOG_THROTTLE = 5000; // Log errors max every 5s
+  
   const questionEl = document.getElementById('question');
   const answersEl = document.getElementById('answers');
   const timerFill = document.getElementById('timer-fill');
@@ -36,12 +40,21 @@
 
   // Audio
   const audioSources = {
-    timer: 'http://localhost:3000/overlay/audio/30secondes.wav',
-    correct: 'http://localhost:3000/overlay/audio/correct.wav',
-    wrong: 'http://localhost:3000/overlay/audio/wrong.wav',
-    select: 'http://localhost:3000/overlay/audio/select.wav'
+    timer: `${API_URL}/overlay/audio/30secondes.wav`,
+    correct: `${API_URL}/overlay/audio/correct.wav`,
+    wrong: `${API_URL}/overlay/audio/wrong.wav`,
+    select: `${API_URL}/overlay/audio/select.wav`
   };
   
+  // Fonction utilitaire pour envoyer des requêtes avec la clé API
+  function fetchWithApiKey(url, options = {}) {
+    const headers = { ...options.headers };
+    if (API_KEY) {
+      headers['X-API-Key'] = API_KEY;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
   // Préchargement des sons
   const audioCache = {};
   Object.keys(audioSources).forEach(key => {
@@ -104,7 +117,7 @@
     console.log('[OVERLAY] Démarrage du polling serveur toutes les', POLL_INTERVAL_MS, 'ms');
     setInterval(async () => {
       try {
-        const res = await fetch(COMMAND_POLL_URL + '?t=' + Date.now(), { 
+        const res = await fetchWithApiKey(COMMAND_POLL_URL + '?t=' + Date.now(), { 
           cache: 'no-store'
         });
         if (!res.ok) {
@@ -167,12 +180,12 @@
   async function fetchRandomQuestion(levelId, categoryId, themeId) {
     // Try API first
     try {
-      let url = API_URL + '?' + Date.now();
+      let url = `${API_URL}/random?t=${Date.now()}`;
       if (levelId) url += `&levelId=${levelId}`;
       if (categoryId) url += `&categoryId=${categoryId}`;
       if (themeId) url += `&themeId=${themeId}`;
       
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetchWithApiKey(url, { cache: 'no-store' });
       if (res.ok) {
         return await res.json();
       }
