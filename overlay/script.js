@@ -3,6 +3,7 @@
   const channelName = 'quiz-control';
   const POLL_INTERVAL_MS = 500; // 500ms pour OBS
   const API_URL = 'http://localhost:3000';
+  const RANDOM_URL = `${API_URL}/random`;
   const API_KEY = localStorage.getItem('quiz-api-key') || ''; // Clé API optionnelle
   const COMMAND_POLL_URL = `${API_URL}/command`;
   
@@ -175,12 +176,10 @@
     }
   }
 
-  const API_URL = 'http://localhost:3000/random';
-
   async function fetchRandomQuestion(levelId, categoryId, themeId) {
     // Try API first
     try {
-      let url = `${API_URL}/random?t=${Date.now()}`;
+      let url = `${RANDOM_URL}?t=${Date.now()}`;
       if (levelId) url += `&levelId=${levelId}`;
       if (categoryId) url += `&categoryId=${categoryId}`;
       if (themeId) url += `&themeId=${themeId}`;
@@ -405,6 +404,61 @@
     selectedCategory = category;
   }
 
+  function renderSelectionList(title, items, selectedId) {
+    questionEl.style.display = 'none';
+    answersEl.style.display = 'none';
+    selectionInfoPanel.style.display = 'none';
+    selectionPanel.style.display = 'flex';
+    selectionTitle.textContent = title;
+    selectionInfo.textContent = '';
+    selectionButtons.innerHTML = '';
+    selectionButtons.style.display = 'grid';
+
+    if (!Array.isArray(items) || !items.length) {
+      const p = document.createElement('p');
+      p.textContent = 'Aucun élément disponible';
+      p.style.color = '#ff6b6b';
+      p.style.gridColumn = '1/-1';
+      selectionButtons.appendChild(p);
+      return;
+    }
+
+    items.forEach((item, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'selection-btn';
+      btn.textContent = item.name || `Option ${idx + 1}`;
+      if (selectedId && item.id === selectedId) {
+        btn.classList.add('active');
+      }
+      selectionButtons.appendChild(btn);
+    });
+  }
+
+  function showSelectionStep(step, message) {
+    // Forcer l'affichage du panneau de sélection
+    questionEl.style.display = 'none';
+    answersEl.style.display = 'none';
+    selectionInfoPanel.style.display = 'none';
+    selectionPanel.style.display = 'flex';
+    if (selectionButtons) selectionButtons.style.display = 'none';
+
+    const titles = {
+      start: 'Sélection en cours...',
+      level: 'Choix de la difficulté',
+      category: 'Choix de la catégorie',
+      theme: 'Choix du thème',
+      ready: 'Prêt à lancer'
+    };
+
+    selectionTitle.textContent = titles[step] || 'Sélection';
+    selectionInfo.textContent = message || '';
+    selectionInfo.style.fontSize = '28px';
+    selectionInfo.style.fontWeight = '600';
+    selectionInfo.style.color = '#9fb0d3';
+    selectionInfo.style.textAlign = 'center';
+    selectionInfo.style.marginTop = '12px';
+  }
+
   function showThemeSelection(theme, level, category) {
     // Afficher le thème sélectionné
     selectionTitle.textContent = '🎨 Thème sélectionné';
@@ -496,15 +550,15 @@
     updateConnectionStatus(true);
     switch (cmd.type) {
       case 'START_SELECTION':
-        // Préparer l'affichage pour la sélection
-        questionEl.style.display = 'none';
-        answersEl.style.display = 'none';
-        selectionInfoPanel.style.display = 'none';
-        selectionPanel.style.display = 'flex';
-        selectionTitle.textContent = 'Sélection en cours...';
-        selectionInfo.textContent = '';
-        selectionButtons.innerHTML = '';
-        selectionButtons.style.display = 'none';
+        showSelectionStep('start', 'Préparation de la sélection...');
+        if (selectionButtons) {
+          selectionButtons.innerHTML = '';
+          selectionButtons.style.display = 'none';
+        }
+        break;
+
+      case 'SELECTION_STEP':
+        showSelectionStep(cmd.step, cmd.message);
         break;
       
       case 'SHOW_LEVEL':
@@ -512,11 +566,19 @@
           showLevelSelection(cmd.level);
         }
         break;
+
+      case 'SHOW_LEVELS_LIST':
+        renderSelectionList('🎯 Choisissez la difficulté', cmd.levels || [], cmd.selectedId);
+        break;
       
       case 'SHOW_CATEGORY':
         if (cmd.category) {
           showCategorySelection(cmd.category);
         }
+        break;
+
+      case 'SHOW_CATEGORIES_LIST':
+        renderSelectionList('📂 Choisissez la catégorie', cmd.categories || [], cmd.selectedId);
         break;
       
       case 'SHOW_THEME':

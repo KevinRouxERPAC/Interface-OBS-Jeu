@@ -20,6 +20,8 @@
   let selectedLevel = null;
   let selectedCategory = null;
   let selectedTheme = null;
+  let cachedLevels = [];
+  let cachedCategories = [];
   let currentStep = 'idle'; // idle, level, category, theme, ready
   
   const stepLevel = document.getElementById('step-level');
@@ -154,6 +156,8 @@
     selectedLevel = null;
     selectedCategory = null;
     selectedTheme = null;
+    cachedLevels = [];
+    cachedCategories = [];
     currentStep = 'level';
     
     // Afficher l'étape 1
@@ -166,6 +170,7 @@
     try {
       const res = await fetch('http://localhost:3000/levels');
       const levels = await res.json();
+      cachedLevels = levels;
       levelsGrid.innerHTML = '';
       levels.forEach(level => {
         const btn = document.createElement('button');
@@ -178,6 +183,8 @@
       
       // Envoyer commande à l'overlay pour préparer l'affichage
       sendCommand({ type: 'START_SELECTION' });
+      sendCommand({ type: 'SELECTION_STEP', step: 'level', message: 'Choisissez la difficulté' });
+      sendCommand({ type: 'SHOW_LEVELS_LIST', levels });
     } catch (err) {
       console.error('[ADMIN] Erreur chargement niveaux:', err);
       levelsGrid.innerHTML = '<p style="grid-column: 1/-1; margin: 0; color: #ff6b6b;">Erreur chargement</p>';
@@ -195,18 +202,21 @@
       btn.classList.toggle('active', btn.textContent === level.name);
     });
     
-    // Envoyer à l'overlay pour affichage 3 secondes
+    // Affichage sur l'overlay : liste des difficultés et surlignage de celle choisie pendant 3s
     sendCommand({ 
-      type: 'SHOW_LEVEL',
-      level: level
+      type: 'SHOW_LEVELS_LIST',
+      levels: cachedLevels,
+      selectedId: level.id
     });
-    
+    sendCommand({ type: 'SELECTION_STEP', step: 'category', message: `Choix de la catégorie pour ${level.name}` });
+
     // Charger les catégories immédiatement
     try {
       const res = await fetch('http://localhost:3000/categories');
       const categories = await res.json();
+      cachedCategories = categories;
       
-      // Afficher l'étape 2 après 3 secondes
+      // Afficher l'étape 2 après 3 secondes (temps d'affichage du surlignage côté overlay)
       setTimeout(() => {
         stepCategory.style.display = 'block';
         categoriesGrid.innerHTML = '';
@@ -218,6 +228,7 @@
           categoriesGrid.appendChild(btn);
         });
         statusEl.textContent = `${level.name} - Sélectionnez une catégorie`;
+        sendCommand({ type: 'SHOW_CATEGORIES_LIST', categories });
       }, 3000);
     } catch (err) {
       console.error('[ADMIN] Erreur chargement catégories:', err);
@@ -231,7 +242,7 @@
 
   async function selectCategory(category) {
     selectedCategory = category;
-    currentStep = 'theme';
+    currentStep = 'ready';
     statusEl.textContent = `📂 Catégorie sélectionnée : ${category.name}`;
     
     // Marquer le bouton sélectionné
@@ -239,60 +250,23 @@
       btn.classList.toggle('active', btn.textContent === category.name);
     });
     
-    // Envoyer à l'overlay pour affichage 3 secondes
+    // Afficher la liste des catégories avec surlignage pendant 3s
     sendCommand({ 
-      type: 'SHOW_CATEGORY',
-      category: category
+      type: 'SHOW_CATEGORIES_LIST',
+      categories: cachedCategories,
+      selectedId: category.id
     });
-    
-    // Charger et sélectionner un thème aléatoire
-    try {
-      const res = await fetch(`http://localhost:3000/themes?categoryId=${category.id}`);
-      const themes = await res.json();
-      
-      if (themes.length === 0) {
-        throw new Error('Aucun thème disponible');
-      }
-      
-      // Sélectionner un thème aléatoire
-      selectedTheme = themes[Math.floor(Math.random() * themes.length)];
-      
-      // Afficher le thème après 3 secondes
-      setTimeout(() => {
-        stepTheme.style.display = 'block';
-        themeDisplay.textContent = `🎨 ${selectedTheme.name}`;
-        themeDisplay.style.color = '#42e8c4';
-        statusEl.textContent = `🎨 Thème sélectionné : ${selectedTheme.name}`;
-        
-        // Envoyer le thème à l'overlay
-        sendCommand({ 
-          type: 'SHOW_THEME',
-          theme: selectedTheme,
-          level: selectedLevel,
-          category: selectedCategory
-        });
-        
-        // Afficher le bouton de lancement après le thème
-        setTimeout(() => {
-          currentStep = 'ready';
-          btnLaunchQuestion.style.display = 'inline-block';
-          statusEl.textContent = '✅ Prêt ! Cliquez sur "Lancer la question"';
-        }, 3000);
-      }, 3000);
-      
-    } catch (err) {
-      console.error('[ADMIN] Erreur chargement thèmes:', err);
-      setTimeout(() => {
-        stepTheme.style.display = 'block';
-        themeDisplay.textContent = '❌ Erreur lors du chargement du thème';
-        themeDisplay.style.color = '#ff6b6b';
-        statusEl.textContent = '❌ Erreur lors du chargement du thème';
-      }, 3000);
-    }
+    sendCommand({ type: 'SELECTION_STEP', step: 'ready', message: 'Prêt à lancer la question' });
+
+    // Afficher le bouton de lancement après le surlignage côté overlay
+    setTimeout(() => {
+      btnLaunchQuestion.style.display = 'inline-block';
+      statusEl.textContent = '✅ Prêt ! Cliquez sur "Lancer la question"';
+    }, 3000);
   }
 
   async function launchQuestion() {
-    if (!selectedLevel || !selectedCategory || !selectedTheme) {
+    if (!selectedLevel || !selectedCategory) {
       statusEl.textContent = '⚠️ Sélection incomplète';
       return;
     }
@@ -300,7 +274,7 @@
     statusEl.textContent = 'Chargement de la question...';
     
     try {
-      const res = await fetch(`http://localhost:3000/random?levelId=${selectedLevel.id}&categoryId=${selectedCategory.id}&themeId=${selectedTheme.id}`);
+      const res = await fetch(`http://localhost:3000/random?levelId=${selectedLevel.id}&categoryId=${selectedCategory.id}`);
       const question = await res.json();
       
       if (question && question.question) {
