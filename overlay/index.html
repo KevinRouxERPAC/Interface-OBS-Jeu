@@ -11,54 +11,98 @@
 </head>
 <body>
   <div class="overlay" id="overlay">
+    <!-- Indicateur de connexion (haut droit) -->
     <div class="connection-status" id="connection-status">
       <span class="dot"></span>
       <span class="text">Synchro...</span>
     </div>
     
-    <!-- Panel de question -->
+    <!-- Panel principal (question/sélection) -->
     <div class="panel" id="panel">
       <img src="image/logo.png" alt="Logo" class="logo-channel">
       <div class="panel-header">
         <div class="badge">Qui veut passer pour un teubé ?</div>
       </div>
       
-      <!-- Écran de sélection dans le panel -->
-      <div class="selection-panel" id="selection-panel" style="display:none;">
-        <h2 class="selection-title" id="selection-title">Choisissez la difficulté</h2>
+      <!-- ===== ÉCRAN D'ATTENTE ===== -->
+      <div id="waiting-screen">
+        <div class="question">🎯 Quiz Interactif</div>
+        <div class="answers" style="justify-content: center; margin-top: 20px;">
+          <div class="answer" style="flex: 0 1 auto;">
+            <span class="text">En attente de sélection...</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ===== ÉCRAN DE SÉLECTION ===== -->
+      <div id="selection-screen" style="display: none;">
+        <!-- Titre de sélection -->
+        <h2 class="selection-title" id="selection-title">🎯 Choisissez la difficulté</h2>
         <div class="selection-info" id="selection-info"></div>
-        <div class="selection-buttons" id="selection-buttons"></div>
+        
+        <!-- Liste des difficultés/catégories (format réponses) -->
+        <div class="answers" id="selection-buttons"></div>
       </div>
       
-      <!-- Info de sélection -->
-      <div class="selection-info-panel" id="selection-info-panel" style="display:none;">
-        <div class="selection-tag">🎯 Difficulté: <span id="info-level">-</span></div>
-        <div class="selection-tag">📚 Catégorie: <span id="info-category">-</span></div>
-        <div class="selection-tag">🎨 Thème: <span id="info-theme">-</span></div>
+      <!-- ===== ÉCRAN DE THÈME ===== -->
+      <div id="theme-screen" style="display: none;">
+        <h2 class="selection-title">🎨 Thème sélectionné</h2>
+        <div id="theme-content" style="text-align: center; margin: 20px 0;">
+          <div style="font-size: 14px; color: #9fb0d3; margin-bottom: 12px;">
+            <span id="theme-breadcrumb">Lycée | Moderne</span>
+          </div>
+          <div style="font-size: 32px; font-weight: 700; color: #42e8c4;">
+            <span id="theme-name">La Révolution Française</span>
+          </div>
+          <div style="font-size: 14px; color: #9fb0d3; margin-top: 12px;">
+            <span id="theme-description"></span>
+          </div>
+        </div>
       </div>
       
-      <div class="question" id="question">En attente d'une question...</div>
-      <div class="answers" id="answers">
-        <button class="answer" data-index="0">
-          <span class="key">A</span>
-          <span class="text">---</span>
-        </button>
-        <button class="answer" data-index="1">
-          <span class="key">B</span>
-          <span class="text">---</span>
-        </button>
-        <button class="answer" data-index="2">
-          <span class="key">C</span>
-          <span class="text">---</span>
-        </button>
-        <button class="answer" data-index="3">
-          <span class="key">D</span>
-          <span class="text">---</span>
-        </button>
-      </div>
-      <div class="timer-bar-bottom">
-        <div class="timer-fill" id="timer-fill"></div>
-        <span class="timer-text" id="timer-text">30s</span>
+      <!-- ===== ÉCRAN DE QUESTION ===== -->
+      <div id="question-screen" style="display: none;">
+        <!-- Tags de sélection (difficulté | catégorie | thème) -->
+        <div class="selection-info-panel" id="selection-info-panel">
+          <div class="selection-tag">🎯 <span id="info-level">-</span></div>
+          <div class="selection-tag">📂 <span id="info-category">-</span></div>
+          <div class="selection-tag">🎨 <span id="info-theme">-</span></div>
+        </div>
+        
+        <!-- Question -->
+        <div class="question" id="question">En attente d'une question...</div>
+        
+        <!-- Propositions -->
+        <div class="answers" id="answers">
+          <button class="answer" data-index="0">
+            <span class="key">A</span>
+            <span class="text">---</span>
+          </button>
+          <button class="answer" data-index="1">
+            <span class="key">B</span>
+            <span class="text">---</span>
+          </button>
+          <button class="answer" data-index="2">
+            <span class="key">C</span>
+            <span class="text">---</span>
+          </button>
+          <button class="answer" data-index="3">
+            <span class="key">D</span>
+            <span class="text">---</span>
+          </button>
+        </div>
+        
+        <!-- Explication (affichée après révélation) -->
+        <div id="question-explanation" style="display: none; margin-top: 12px; padding: 12px; background: rgba(66, 232, 196, 0.1); border-left: 3px solid #42e8c4; border-radius: 8px;">
+          <div style="font-size: 13px; font-weight: 600; color: #42e8c4;">💡 Explication:</div>
+          <div style="font-size: 13px; color: #9fb0d3; margin-top: 6px;" id="explanation-text"></div>
+        </div>
+        
+        <!-- Timer -->
+        <div class="timer-bar-bottom">
+          <div class="timer-fill" id="timer-fill"></div>
+          <span class="timer-text" id="timer-text">30s</span>
+        </div>
       </div>
     </div>
   </div>
