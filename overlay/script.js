@@ -1,112 +1,99 @@
+/**
+ * OVERLAY SCRIPT
+ * Affiche le quiz au public dans OBS
+ * Reçoit les commandes de l'admin et affiche l'état en temps réel
+ * Aucun contrôle du public : lecture seule
+ */
+
 (() => {
-  const DEFAULT_DURATION = 30;
-  const channelName = 'quiz-control';
-  const POLL_INTERVAL_MS = 500; // 500ms pour OBS
-  const API_URL = 'http://localhost:3000';
-  const RANDOM_URL = `${API_URL}/random`;
-  const API_KEY = localStorage.getItem('quiz-api-key') || ''; // Clé API optionnelle
-  const COMMAND_POLL_URL = `${API_URL}/command`;
-  
-  let lastCommandRaw = null;
-  let lastServerCommandId = 0;
-  let lastErrorLog = 0;
-  const ERROR_LOG_THROTTLE = 5000; // Log errors max every 5s
-  
-  const questionEl = document.getElementById('question');
-  const answersEl = document.getElementById('answers');
-  const timerFill = document.getElementById('timer-fill');
-  const timerText = document.getElementById('timer-text');
-  const selectionPanel = document.getElementById('selection-panel');
-  const selectionTitle = document.getElementById('selection-title');
-  const selectionInfo = document.getElementById('selection-info');
-  const selectionButtons = document.getElementById('selection-buttons');
-  const selectionInfoPanel = document.getElementById('selection-info-panel');
-  const infoLevel = document.getElementById('info-level');
-  const infoCategory = document.getElementById('info-category');
-  const infoTheme = document.getElementById('info-theme');
-
-  let timerId = null;
-  let currentQuestion = null;
-  let timerDuration = DEFAULT_DURATION;
-  let channel = null;
-  let selectedIndex = null;
-  let timerAudio = null;
-  let selectAudio = null;
-  let lastAdminPing = 0;
-  let selectedLevel = null;
-  let selectedCategory = null;
-  let selectedTheme = null;
-  const connectionStatusEl = document.getElementById('connection-status');
-  const connectionTextEl = connectionStatusEl?.querySelector('.text');
-
-  // Audio
-  const audioSources = {
-    timer: `${API_URL}/overlay/audio/30secondes.wav`,
-    correct: `${API_URL}/overlay/audio/correct.wav`,
-    wrong: `${API_URL}/overlay/audio/wrong.wav`,
-    select: `${API_URL}/overlay/audio/select.wav`
+  // ========================
+  // CONFIG & CONSTANTS
+  // ========================
+  const CONFIG = {
+    channelName: 'quiz-control',
+    apiUrl: 'http://localhost:3000',
+    apiKey: localStorage.getItem('quiz-api-key') || '',
+    pollInterval: 500, // 500ms pour OBS
+    defaultTimerDuration: 30 // secondes
   };
-  
-  // Fonction utilitaire pour envoyer des requêtes avec la clé API
-  function fetchWithApiKey(url, options = {}) {
-    const headers = { ...options.headers };
-    if (API_KEY) {
-      headers['X-API-Key'] = API_KEY;
-    }
-    return fetch(url, { ...options, headers });
-  }
 
-  // Préchargement des sons
-  const audioCache = {};
-  Object.keys(audioSources).forEach(key => {
-    const audio = new Audio(audioSources[key]);
-    audio.preload = 'auto';
-    audio.volume = 0.7;
-    audioCache[key] = audio;
-  });
-
-  function playSound(type = 'timer') {
-    if (!audioCache[type]) {
-      console.warn('Son non trouvé:', type);
-      return;
-    }
+  // ========================
+  // DOM ELEMENTS
+  // ========================
+  const DOM = {
+    overlay: document.getElementById('overlay'),
+    connectionStatus: document.getElementById('connection-status'),
+    connectionText: document.querySelector('#connection-status .text'),
     
-    try {
-      const audio = audioCache[type].cloneNode();
-      audio.volume = 0.7;
-      audio.currentTime = 0;
-      
-      // Tracker le son de sélection pour pouvoir l'arrêter plus tard
-      if (type === 'select') {
-        // Arrêter le son précédent s'il existe
-        if (selectAudio) {
-          selectAudio.pause();
-          selectAudio.currentTime = 0;
-        }
-        audio.loop = true; // Boucler le son de sélection
-        selectAudio = audio;
-      }
-      
-      audio.play()
-        .then(() => console.log('Audio joué:', type))
-        .catch(err => console.warn('Erreur lecture audio:', type, err));
-    } catch (err) {
-      console.warn('Erreur création audio:', type, err);
-    }
-  }
+    // Écrans
+    waitingScreen: document.getElementById('waiting-screen'),
+    selectionScreen: document.getElementById('selection-screen'),
+    themeScreen: document.getElementById('theme-screen'),
+    questionScreen: document.getElementById('question-screen'),
+    
+    // Sélection
+    selectionTitle: document.getElementById('selection-title'),
+    selectionInfo: document.getElementById('selection-info'),
+    selectionButtons: document.getElementById('selection-buttons'),
+    
+    // Thème
+    themeBreadcrumb: document.getElementById('theme-breadcrumb'),
+    themeName: document.getElementById('theme-name'),
+    themeDescription: document.getElementById('theme-description'),
+    
+    // Question
+    question: document.getElementById('question'),
+    answers: document.getElementById('answers'),
+    answerButtons: [], // Rempli au démarrage
+    selectionInfoPanel: document.getElementById('selection-info-panel'),
+    infoLevel: document.getElementById('info-level'),
+    infoCategory: document.getElementById('info-category'),
+    infoTheme: document.getElementById('info-theme'),
+    
+    // Timer
+    timerFill: document.getElementById('timer-fill'),
+    timerText: document.getElementById('timer-text'),
+    questionExplanation: document.getElementById('question-explanation'),
+    explanationText: document.getElementById('explanation-text')
+  };
 
-  const keyLabels = ['A', 'B', 'C', 'D'];
+  // ========================
+  // STATE
+  // ========================
+  let state = {
+    screen: 'WAITING', // WAITING, SELECTION, THEME, QUESTION
+    selectedLevel: null,
+    selectedCategory: null,
+    selectedTheme: null,
+    currentQuestion: null,
+    timerDuration: CONFIG.defaultTimerDuration,
+    selectedAnswerIndex: null,
+    lastServerCommandId: 0,
+    lastAdminPing: Date.now(),
+    timerId: null,
+    timerAudio: null,
+    selectAudio: null
+  };
 
+  // ========================
+  // COMMUNICATION
+  // ========================
+  let channel = null;
+  const lastErrorLog = { time: 0 };
+
+  /**
+   * Initialise la communication avec l'admin
+   */
   function initChannel() {
-    console.log('[OVERLAY] Initialisation de la communication...');
+    console.log('[OVERLAY] Initialisation de la communication');
     
-    // BroadcastChannel (fonctionne entre onglets browser, pas avec OBS)
+    // BroadcastChannel (onglets navigateur)
     if ('BroadcastChannel' in window) {
       try {
-        channel = new BroadcastChannel(channelName);
-        channel.onmessage = (event) => {
-          console.log('[OVERLAY] Commande via BroadcastChannel:', event.data);
-          handleCommand(event.data);
+        channel = new BroadcastChannel(CONFIG.channelName);
+        channel.onmessage = (evt) => {
+          console.log('[OVERLAY] Commande reçue:', evt.data);
+          handleCommand(evt.data);
         };
         console.log('[OVERLAY] BroadcastChannel activé');
       } catch (err) {
@@ -114,566 +101,485 @@
       }
     }
 
-    // Poll serveur (PRINCIPAL pour OBS)
-    console.log('[OVERLAY] Démarrage du polling serveur toutes les', POLL_INTERVAL_MS, 'ms');
-    setInterval(async () => {
-      try {
-        const res = await fetchWithApiKey(COMMAND_POLL_URL + '?t=' + Date.now(), { 
-          cache: 'no-store'
-        });
-        if (!res.ok) {
-          const now = Date.now();
-          if (now - lastErrorLog > ERROR_LOG_THROTTLE) {
-            console.warn('[OVERLAY] Serveur inaccessible (status:', res.status + ')');
-            lastErrorLog = now;
-          }
-          return;
-        }
-        const payload = await res.json();
-        if (!payload || typeof payload.id !== 'number') return;
-        if (payload.id === 0 || payload.id === lastServerCommandId) return;
-        
-        console.log('[OVERLAY] Nouvelle commande serveur #' + payload.id + ':', payload.cmd);
-        lastServerCommandId = payload.id;
-        handleCommand(payload.cmd);
-      } catch (err) {
-        const now = Date.now();
-        if (now - lastErrorLog > ERROR_LOG_THROTTLE) {
-          console.error('[OVERLAY] Serveur déconnecté -', err.message);
-          lastErrorLog = now;
-        }
-      }
-    }, POLL_INTERVAL_MS);
+    // Polling serveur (PRINCIPAL pour OBS)
+    console.log('[OVERLAY] Polling serveur chaque', CONFIG.pollInterval, 'ms');
+    setInterval(pollServer, CONFIG.pollInterval);
   }
 
-  function updateConnectionStatus(connected) {
-    if (!connectionStatusEl) return;
-    if (connected) {
-      connectionStatusEl.classList.remove('disconnected');
-      connectionStatusEl.classList.add('connected');
-      if (connectionTextEl) connectionTextEl.textContent = 'Synchronisé';
-      lastAdminPing = Date.now();
-    } else {
-      connectionStatusEl.classList.remove('connected');
-      connectionStatusEl.classList.add('disconnected');
-      if (connectionTextEl) connectionTextEl.textContent = 'Non synchronisé';
-    }
-  }
-
-  // Vérifier la connexion toutes les 3 secondes
-  setInterval(() => {
-    const timeSinceLastPing = Date.now() - lastAdminPing;
-    if (timeSinceLastPing > 5000) {
-      updateConnectionStatus(false);
-    }
-  }, 3000);
-
-  function postMessage(cmd) {
-    if (channel) {
-      channel.postMessage(cmd);
-    } else {
-      localStorage.setItem('quiz-state', JSON.stringify(cmd));
-    }
-  }
-
-  async function fetchRandomQuestion(levelId, categoryId, themeId) {
-    // Try API first
+  /**
+   * Récupère les dernières commandes du serveur
+   */
+  async function pollServer() {
     try {
-      let url = `${RANDOM_URL}?t=${Date.now()}`;
-      if (levelId) url += `&levelId=${levelId}`;
-      if (categoryId) url += `&categoryId=${categoryId}`;
-      if (themeId) url += `&themeId=${themeId}`;
+      const url = `${CONFIG.apiUrl}/command?t=${Date.now()}`;
+      const headers = CONFIG.apiKey ? { 'X-API-Key': CONFIG.apiKey } : {};
+      const res = await fetch(url, { headers, cache: 'no-store' });
       
-      const res = await fetchWithApiKey(url, { cache: 'no-store' });
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (err) {
-      console.warn('API non disponible, fallback JSON', err);
-    }
-
-    // Fallback to local JSON file
-    const res = await fetch('../data/questions.json?' + Date.now(), { cache: 'no-store' });
-    const list = await res.json();
-    const pick = list[Math.floor(Math.random() * list.length)];
-    return pick;
-  }
-
-  function displayQuestion(question) {
-    currentQuestion = question;
-    timerDuration = question?.duration || DEFAULT_DURATION;
-    selectedIndex = null;
-
-    // Arrêter le son de sélection lors du changement de question
-    if (selectAudio) {
-      selectAudio.pause();
-      selectAudio.currentTime = 0;
-      selectAudio = null;
-    }
-
-    // Reset overlay alert state
-    const overlayEl = document.getElementById('overlay');
-    overlayEl?.classList.remove('alert');
-
-    questionEl.textContent = question.question;
-
-    const answerNodes = Array.from(answersEl.querySelectorAll('.answer'));
-    answerNodes.forEach((node, idx) => {
-      node.classList.remove('correct', 'revealed', 'highlight', 'wrong', 'pulse');
-      node.querySelector('.key').textContent = keyLabels[idx] || String(idx + 1);
-      node.querySelector('.text').textContent = question.propositions[idx] || '';
-    });
-
-    updateTimerLabel(timerDuration);
-    restartTimer(timerDuration);
-    broadcastState();
-  }
-
-  function updateTimerLabel(value) {
-    timerText.textContent = `${Math.ceil(value)}s`;
-  }
-
-  function restartTimer(duration = DEFAULT_DURATION) {
-    clearTimer();
-    const totalMs = duration * 1000;
-    timerFill.style.transition = 'none';
-    timerFill.style.width = '100%';
-    // Force reflow pour réinitialiser l'animation
-    void timerFill.offsetWidth;
-
-    // Démarrer la musique de timer en boucle
-    if (audioCache.timer) {
-      timerAudio = audioCache.timer.cloneNode();
-      timerAudio.loop = true;
-      timerAudio.volume = 0.4;
-      timerAudio.play().catch(err => console.warn('Timer audio failed:', err));
-    }
-
-    requestAnimationFrame(() => {
-      timerFill.style.transition = `width ${duration}s linear`;
-      timerFill.style.width = '0%';
-    });
-
-    const startedAt = performance.now();
-    timerId = requestAnimationFrame(function tick(now) {
-      const elapsed = now - startedAt;
-      const remaining = Math.max(0, totalMs - elapsed);
-      updateTimerLabel(Math.ceil(remaining / 1000));
-      if (remaining <= 0) {
-        timerFill.style.width = '0%';
-        timerId = null;
-        // Arrêter la musique du timer
-        if (timerAudio) {
-          timerAudio.pause();
-          timerAudio.currentTime = 0;
-          timerAudio = null;
-        }
-        postMessage({ type: 'TIMER_END' });
-        revealAnswer(); // Révélation automatique quand le timer atteint 0
+      if (!res.ok) {
+        logErrorThrottled(`Serveur inaccessible (${res.status})`);
+        updateConnectionStatus(false);
         return;
       }
-      timerId = requestAnimationFrame(tick);
-    });
-  }
-
-  function clearTimer() {
-    if (timerId) {
-      cancelAnimationFrame(timerId);
-      timerId = null;
-    }
-    // Arrêter la musique du timer
-    if (timerAudio) {
-      timerAudio.pause();
-      timerAudio.currentTime = 0;
-      timerAudio = null;
-    }
-    // Figer la barre de progression à sa position actuelle
-    if (timerFill) {
-      const currentWidth = timerFill.getBoundingClientRect().width;
-      const parentWidth = timerFill.parentElement.getBoundingClientRect().width;
-      const percentage = (currentWidth / parentWidth) * 100;
-      timerFill.style.transition = 'none';
-      timerFill.style.width = `${percentage}%`;
-    }
-  }
-
-  function revealAnswer() {
-    if (!currentQuestion) return;
-    
-    // Vérifier qu'une réponse est sélectionnée
-    if (selectedIndex == null) {
-      console.warn('[OVERLAY] Aucune réponse sélectionnée, révélation annulée');
-      return;
-    }
-    
-    // Arrêter le son de sélection s'il est en cours
-    if (selectAudio) {
-      selectAudio.pause();
-      selectAudio.currentTime = 0;
-      selectAudio = null;
-    }
-    
-    // Arrêter la musique du timer
-    if (timerAudio) {
-      timerAudio.pause();
-      timerAudio.currentTime = 0;
-      timerAudio = null;
-    }
-    
-    clearTimer();
-    
-    const overlayEl = document.getElementById('overlay');
-    
-    const correctIndex = Number(currentQuestion.bonneReponse);
-    const nodes = Array.from(answersEl.querySelectorAll('.answer'));
-    
-    nodes.forEach((node, idx) => {
-      const isCorrect = idx === correctIndex;
-      node.classList.add('revealed');
       
-      if (isCorrect) {
-        node.classList.add('correct');
-        // Animation pulse pour la bonne réponse
-        setTimeout(() => node.classList.add('pulse'), 50);
-      } else if (idx === selectedIndex) {
-        // Marquer visuellement la mauvaise réponse sélectionnée
-        node.classList.add('wrong');
-      }
-    });
-
-    if (selectedIndex != null) {
-      const isCorrect = selectedIndex === correctIndex;
-      console.log('Révélation - selectedIndex:', selectedIndex, 'correctIndex:', correctIndex, 'isCorrect:', isCorrect);
+      const payload = await res.json();
+      if (!payload || typeof payload.id !== 'number' || payload.id === 0) return;
+      if (payload.id === state.lastServerCommandId) return;
       
-      // Petit délai avant le son pour laisser l'animation se lancer
-      setTimeout(() => {
-        playSound(isCorrect ? 'correct' : 'wrong');
-      }, 100);
-      
-      if (!isCorrect && overlayEl) {
-        overlayEl.classList.add('alert');
-        // Retrait automatique de l'alerte après 2.5s
-        setTimeout(() => overlayEl.classList.remove('alert'), 2500);
-      }
+      state.lastServerCommandId = payload.id;
+      updateConnectionStatus(true);
+      handleCommand(payload.cmd);
+    } catch (err) {
+      logErrorThrottled(`Serveur déconnecté: ${err.message}`);
+      updateConnectionStatus(false);
     }
-    
-    postMessage({ type: 'ANSWER_REVEALED', id: currentQuestion.id });
   }
 
-  function highlightAnswer(index) {
-    if (index == null) return;
-    playSound('select');
-    const nodes = Array.from(answersEl.querySelectorAll('.answer'));
-    nodes.forEach((node, idx) => {
-      node.classList.toggle('highlight', idx === Number(index));
-    });
-    selectedIndex = Number(index);
-    clearTimer(); // Arrêt du timer et de la musique quand une réponse est sélectionnée
-    broadcastState();
-  }
-
-  function showLevelSelection(level) {
-    // Cacher la question et les réponses
-    questionEl.style.display = 'none';
-    answersEl.style.display = 'none';
-    selectionInfoPanel.style.display = 'none';
-    
-    // Afficher le panneau de sélection
-    selectionPanel.style.display = 'flex';
-    selectionTitle.textContent = '🎯 Difficulté sélectionnée';
-    selectionInfo.textContent = level.name;
-    selectionInfo.style.fontSize = '32px';
-    selectionInfo.style.fontWeight = '700';
-    selectionInfo.style.color = '#42e8c4';
-    selectionInfo.style.textAlign = 'center';
-    selectionInfo.style.marginTop = '20px';
-    selectionButtons.innerHTML = '';
-    selectionButtons.style.display = 'none';
-    
-    selectedLevel = level;
-  }
-
-  function showCategorySelection(category) {
-    // Afficher la catégorie sélectionnée
-    selectionTitle.textContent = '📂 Catégorie sélectionnée';
-    selectionInfo.textContent = category.name;
-    selectionInfo.style.fontSize = '32px';
-    selectionInfo.style.fontWeight = '700';
-    selectionInfo.style.color = '#7c5dff';
-    
-    selectedCategory = category;
-  }
-
-  function renderSelectionList(title, items, selectedId) {
-    questionEl.style.display = 'none';
-    answersEl.style.display = 'none';
-    selectionInfoPanel.style.display = 'none';
-    selectionPanel.style.display = 'flex';
-    selectionTitle.textContent = title;
-    selectionInfo.textContent = '';
-    selectionButtons.innerHTML = '';
-    selectionButtons.style.display = 'grid';
-
-    if (!Array.isArray(items) || !items.length) {
-      const p = document.createElement('p');
-      p.textContent = 'Aucun élément disponible';
-      p.style.color = '#ff6b6b';
-      p.style.gridColumn = '1/-1';
-      selectionButtons.appendChild(p);
-      return;
+  /**
+   * Log les erreurs avec throttle (max 1 log par 5s)
+   */
+  function logErrorThrottled(msg) {
+    const now = Date.now();
+    if (now - lastErrorLog.time > 5000) {
+      console.warn('[OVERLAY]', msg);
+      lastErrorLog.time = now;
     }
-
-    items.forEach((item, idx) => {
-      const btn = document.createElement('button');
-      btn.className = 'selection-btn';
-      btn.textContent = item.name || `Option ${idx + 1}`;
-      if (selectedId && item.id === selectedId) {
-        btn.classList.add('active');
-      }
-      selectionButtons.appendChild(btn);
-    });
   }
 
-  function showSelectionStep(step, message) {
-    // Forcer l'affichage du panneau de sélection
-    questionEl.style.display = 'none';
-    answersEl.style.display = 'none';
-    selectionInfoPanel.style.display = 'none';
-    selectionPanel.style.display = 'flex';
-    if (selectionButtons) selectionButtons.style.display = 'none';
-
-    const titles = {
-      start: 'Sélection en cours...',
-      level: 'Choix de la difficulté',
-      category: 'Choix de la catégorie',
-      theme: 'Choix du thème',
-      ready: 'Prêt à lancer'
-    };
-
-    selectionTitle.textContent = titles[step] || 'Sélection';
-    selectionInfo.textContent = message || '';
-    selectionInfo.style.fontSize = '28px';
-    selectionInfo.style.fontWeight = '600';
-    selectionInfo.style.color = '#9fb0d3';
-    selectionInfo.style.textAlign = 'center';
-    selectionInfo.style.marginTop = '12px';
-  }
-
-  function showThemeSelection(theme, level, category) {
-    // Afficher le thème sélectionné
-    selectionTitle.textContent = '🎨 Thème sélectionné';
-    selectionInfo.innerHTML = `
-      <div style="margin-bottom: 16px; font-size: 16px; color: #9fb0d3;">
-        ${level?.name || ''} | ${category?.name || ''}
-      </div>
-      <div style="font-size: 36px; font-weight: 700; color: #42e8c4;">
-        ${theme.name}
-      </div>
-    `;
+  /**
+   * Met à jour l'indicateur de connexion
+   */
+  function updateConnectionStatus(connected) {
+    if (!DOM.connectionStatus) return;
+    state.lastAdminPing = Date.now();
     
-    selectedTheme = theme;
-    selectedLevel = level;
-    selectedCategory = category;
-  }
-
-  async function loadQuestion(levelId, categoryId, themeId, level, category, theme) {
-    // Afficher les infos de sélection si disponibles
-    if (level && category && theme) {
-      selectionInfoPanel.style.display = 'flex';
-      infoLevel.textContent = level.name || '';
-      infoCategory.textContent = category.name || '';
-      infoTheme.textContent = theme.name || '';
-    } else {
-      selectionInfoPanel.style.display = 'none';
+    DOM.connectionStatus.classList.toggle('connected', connected);
+    DOM.connectionStatus.classList.toggle('disconnected', !connected);
+    if (DOM.connectionText) {
+      DOM.connectionText.textContent = connected ? 'Synchronisé' : 'Non synchronisé';
     }
-    
-    // Cacher le panneau de sélection
-    selectionPanel.style.display = 'none';
-    questionEl.style.display = 'block';
-    answersEl.style.display = 'grid';
-    
-    const q = await fetchRandomQuestion(levelId, categoryId, themeId);
-    displayQuestion(q);
   }
 
-  function showLevelSelection(level) {
-    // Cacher la question et les réponses
-    questionEl.style.display = 'none';
-    answersEl.style.display = 'none';
-    selectionInfoPanel.style.display = 'none';
-    
-    // Afficher le panneau de sélection
-    selectionPanel.style.display = 'flex';
-    selectionTitle.textContent = '🎯 Difficulté sélectionnée';
-    selectionInfo.textContent = level.name;
-    selectionInfo.style.fontSize = '32px';
-    selectionInfo.style.fontWeight = '700';
-    selectionInfo.style.color = '#42e8c4';
-    selectionInfo.style.textAlign = 'center';
-    selectionInfo.style.marginTop = '20px';
-    selectionButtons.innerHTML = '';
-    selectionButtons.style.display = 'none';
-    
-    selectedLevel = level;
-  }
+  // ========================
+  // COMMAND HANDLERS
+  // ========================
 
-  function showCategorySelection(category) {
-    // Afficher la catégorie sélectionnée
-    selectionTitle.textContent = '📂 Catégorie sélectionnée';
-    selectionInfo.textContent = category.name;
-    selectionInfo.style.fontSize = '32px';
-    selectionInfo.style.fontWeight = '700';
-    selectionInfo.style.color = '#7c5dff';
-    
-    selectedCategory = category;
-  }
-
-  function showThemeSelection(theme, level, category) {
-    // Afficher le thème sélectionné
-    selectionTitle.textContent = '🎨 Thème sélectionné';
-    selectionInfo.innerHTML = `
-      <div style="margin-bottom: 16px; font-size: 16px; color: #9fb0d3;">
-        ${level?.name || ''} | ${category?.name || ''}
-      </div>
-      <div style="font-size: 36px; font-weight: 700; color: #42e8c4;">
-        ${theme.name}
-      </div>
-    `;
-    
-    selectedTheme = theme;
-    selectedLevel = level;
-    selectedCategory = category;
-  }
-
+  /**
+   * Traite les commandes reçues de l'admin
+   */
   function handleCommand(cmd) {
     if (!cmd || typeof cmd !== 'object') return;
+    
+    console.log('[OVERLAY] Traitement commande:', cmd.type);
     updateConnectionStatus(true);
+    
     switch (cmd.type) {
       case 'START_SELECTION':
-        showSelectionStep('start', 'Préparation de la sélection...');
-        if (selectionButtons) {
-          selectionButtons.innerHTML = '';
-          selectionButtons.style.display = 'none';
-        }
+        showWaitingScreen();
         break;
-
-      case 'SELECTION_STEP':
-        showSelectionStep(cmd.step, cmd.message);
-        break;
-      
-      case 'SHOW_LEVEL':
-        if (cmd.level) {
-          showLevelSelection(cmd.level);
-        }
-        break;
-
+        
       case 'SHOW_LEVELS_LIST':
-        renderSelectionList('🎯 Choisissez la difficulté', cmd.levels || [], cmd.selectedId);
+        showLevelsList(cmd.levels || [], cmd.selectedId);
         break;
-      
-      case 'SHOW_CATEGORY':
-        if (cmd.category) {
-          showCategorySelection(cmd.category);
-        }
-        break;
-
+        
       case 'SHOW_CATEGORIES_LIST':
-        renderSelectionList('📂 Choisissez la catégorie', cmd.categories || [], cmd.selectedId);
+        showCategoriesList(cmd.categories || [], cmd.selectedId);
         break;
-      
+        
       case 'SHOW_THEME':
-        if (cmd.theme) {
-          showThemeSelection(cmd.theme, cmd.level, cmd.category);
-        }
+        showTheme(cmd.theme, cmd.level, cmd.category);
         break;
-      
+        
       case 'LOAD_QUESTION':
-        if (cmd.question) {
-          loadQuestion(
-            cmd.level?.id, 
-            cmd.category?.id, 
-            cmd.theme?.id,
-            cmd.level,
-            cmd.category,
-            cmd.theme
-          );
-        }
+        loadQuestion(cmd.question, cmd.level, cmd.category, cmd.theme);
         break;
+        
       case 'REVEAL_ANSWER':
         revealAnswer();
         break;
+        
       case 'RESTART_TIMER':
-        timerDuration = cmd.duration || timerDuration || DEFAULT_DURATION;
-        restartTimer(timerDuration);
+        state.timerDuration = cmd.duration || CONFIG.defaultTimerDuration;
+        restartTimer(state.timerDuration);
         break;
+        
       case 'HIGHLIGHT_ANSWER':
         highlightAnswer(cmd.index);
         break;
-      case 'STATE_REQUEST':
-        broadcastState();
-        break;
-      default:
-        break;
-    }
-  }
-
-  function broadcastState() {
-    if (!currentQuestion) return;
-    const payload = {
-      question: currentQuestion,
-      timer: timerDuration,
-      selectedIndex
-    };
-    if (channel) {
-      channel.postMessage({ type: 'STATE_UPDATE', ...payload });
-    } else {
-      localStorage.setItem('quiz-state', JSON.stringify({ type: 'STATE_UPDATE', ...payload }));
-    }
-    
-    // Envoyer l'état au serveur pour que l'admin le récupère
-    fetch('http://localhost:3000/state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(err => console.warn('[OVERLAY] Erreur envoi état:', err.message));
-    
-    updateConnectionStatus(true);
-  }
-
-  // Init
-  console.log('[OVERLAY] Démarrage de l\'overlay');
-  initChannel();
-  
-  // Charger et afficher les niveaux au démarrage
-  (async () => {
-    try {
-      const res = await fetch('http://localhost:3000/levels');
-      const levels = await res.json();
-      
-      if (levels && levels.length > 0) {
-        // Afficher le panneau de sélection
-        questionEl.style.display = 'none';
-        answersEl.style.display = 'none';
-        selectionInfoPanel.style.display = 'none';
-        selectionPanel.style.display = 'flex';
-        selectionTitle.textContent = '🎯 Choisissez la difficulté';
-        selectionInfo.textContent = '';
-        selectionButtons.innerHTML = '';
-        selectionButtons.style.display = 'grid';
         
-        // Créer les boutons
-        levels.forEach(level => {
-          const btn = document.createElement('button');
-          btn.className = 'selection-btn';
-          btn.textContent = level.name;
-          btn.addEventListener('click', () => {
-            showLevelSelection(level);
-          });
-          selectionButtons.appendChild(btn);
-        });
-      }
-    } catch (err) {
-      console.error('[OVERLAY] Erreur chargement niveaux au démarrage:', err);
+      default:
+        console.warn('[OVERLAY] Commande inconnue:', cmd.type);
     }
-  })();
+  }
+
+  // ========================
+  // ANSWER HIGHLIGHT
+  // ========================
+
+  /**
+   * Surligne une réponse (sélectionnée par l'admin)
+   */
+  function highlightAnswer(index) {
+    if (index == null) return;
+    state.selectedAnswerIndex = Number(index);
+    
+    // Surligne la réponse
+    DOM.answers.querySelectorAll('.answer').forEach((btn, idx) => {
+      btn.classList.toggle('highlight', idx === state.selectedAnswerIndex);
+    });
+    
+    // Joue le son de sélection
+    playSound('select');
+    
+    console.log('[OVERLAY] Réponse surlignée:', index);
+  }
+
+  // ========================
+  // SCREEN MANAGEMENT
+  // ========================
+
+  /**
+   * Affiche l'écran d'attente
+   */
+  function showWaitingScreen() {
+    state.screen = 'WAITING';
+    DOM.waitingScreen.style.display = 'block';
+    DOM.selectionScreen.style.display = 'none';
+    DOM.themeScreen.style.display = 'none';
+    DOM.questionScreen.style.display = 'none';
+    clearTimer();
+    console.log('[OVERLAY] Écran d\'attente affiché');
+  }
+
+  /**
+   * Affiche une liste d'éléments (difficultés ou catégories)
+   */
+  function showSelectionList(title, items, selectedId) {
+    state.screen = 'SELECTION';
+    DOM.waitingScreen.style.display = 'none';
+    DOM.selectionScreen.style.display = 'block';
+    DOM.themeScreen.style.display = 'none';
+    DOM.questionScreen.style.display = 'none';
+    
+    DOM.selectionTitle.textContent = title;
+    DOM.selectionInfo.textContent = '';
+    DOM.selectionButtons.innerHTML = '';
+    
+    if (!Array.isArray(items) || !items.length) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'answer';
+      wrapper.innerHTML = '<span class="text">Aucun élément disponible</span>';
+      wrapper.style.color = '#ff6b6b';
+      DOM.selectionButtons.appendChild(wrapper);
+      return;
+    }
+    
+    // Les touches A/B/C/D
+    const keyLabels = ['A', 'B', 'C', 'D'];
+    
+    items.forEach((item, idx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'answer selection-item';
+      
+      const key = document.createElement('div');
+      key.className = 'key';
+      key.textContent = keyLabels[idx] || String(idx + 1);
+      
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = item.name || `Option ${idx + 1}`;
+      
+      wrapper.appendChild(key);
+      wrapper.appendChild(text);
+      
+      // Surligna l'élément sélectionné
+      if (selectedId && item.id === selectedId) {
+        wrapper.classList.add('highlight');
+      }
+      
+      DOM.selectionButtons.appendChild(wrapper);
+    });
+  }
+
+  /**
+   * Affiche la liste des difficultés
+   */
+  function showLevelsList(levels, selectedId) {
+    showSelectionList('🎯 Choisissez la difficulté', levels, selectedId);
+    state.selectedLevel = selectedId;
+  }
+
+  /**
+   * Affiche la liste des catégories
+   */
+  function showCategoriesList(categories, selectedId) {
+    showSelectionList('📂 Choisissez la catégorie', categories, selectedId);
+    state.selectedCategory = selectedId;
+  }
+
+  /**
+   * Affiche l'écran du thème sélectionné
+   */
+  function showTheme(theme, level, category) {
+    state.screen = 'THEME';
+    state.selectedTheme = theme;
+    state.selectedLevel = level;
+    state.selectedCategory = category;
+    
+    DOM.waitingScreen.style.display = 'none';
+    DOM.selectionScreen.style.display = 'none';
+    DOM.themeScreen.style.display = 'block';
+    DOM.questionScreen.style.display = 'none';
+    
+    DOM.themeBreadcrumb.textContent = `${level?.name || ''} | ${category?.name || ''}`;
+    DOM.themeName.textContent = theme.name || 'Thème';
+    DOM.themeDescription.textContent = theme.description || '';
+    
+    console.log('[OVERLAY] Thème affiché:', theme.name);
+  }
+
+  /**
+   * Charge et affiche une question
+   */
+  function loadQuestion(question, level, category, theme) {
+    state.screen = 'QUESTION';
+    state.currentQuestion = question;
+    state.selectedLevel = level;
+    state.selectedCategory = category;
+    state.selectedTheme = theme;
+    state.selectedAnswerIndex = null;
+    state.timerDuration = question?.duration || CONFIG.defaultTimerDuration;
+    
+    DOM.waitingScreen.style.display = 'none';
+    DOM.selectionScreen.style.display = 'none';
+    DOM.themeScreen.style.display = 'none';
+    DOM.questionScreen.style.display = 'block';
+    
+    // Affiche les tags de sélection
+    DOM.infoLevel.textContent = level?.name || '-';
+    DOM.infoCategory.textContent = category?.name || '-';
+    DOM.infoTheme.textContent = theme?.name || '-';
+    
+    // Affiche la question
+    DOM.question.textContent = question.question || 'Question vide';
+    
+    // Affiche les propositions
+    const keyLabels = ['A', 'B', 'C', 'D'];
+    DOM.answers.querySelectorAll('.answer').forEach((btn, idx) => {
+      btn.querySelector('.key').textContent = keyLabels[idx];
+      btn.querySelector('.text').textContent = question.propositions?.[idx] || '';
+      btn.classList.remove('correct', 'wrong', 'revealed', 'highlight', 'pulse');
+    });
+    
+    // Réinitialise l'explication
+    DOM.questionExplanation.style.display = 'none';
+    DOM.explanationText.textContent = '';
+    
+    // Démarre le timer
+    restartTimer(state.timerDuration);
+    
+    console.log('[OVERLAY] Question affichée:', question.question?.substring(0, 50));
+  }
+
+  // ========================
+  // TIMER
+  // ========================
+
+  /**
+   * Démarre ou relance le timer
+   */
+  function restartTimer(duration) {
+    clearTimer();
+    state.timerDuration = duration;
+    
+    const totalMs = duration * 1000;
+    const startedAt = performance.now();
+    
+    // Réinitialise la barre
+    DOM.timerFill.style.transition = 'none';
+    DOM.timerFill.style.width = '100%';
+    void DOM.timerFill.offsetWidth; // Force reflow
+    
+    // Lance la musique de timer (si disponible)
+    playTimerSound();
+    
+    // Anime la barre
+    requestAnimationFrame(() => {
+      DOM.timerFill.style.transition = `width ${duration}s linear`;
+      DOM.timerFill.style.width = '0%';
+    });
+    
+    // Boucle du timer
+    state.timerId = requestAnimationFrame(function tick(now) {
+      const elapsed = now - startedAt;
+      const remaining = Math.max(0, totalMs - elapsed);
+      
+      updateTimerLabel(Math.ceil(remaining / 1000));
+      
+      if (remaining <= 0) {
+        clearTimer();
+        // Révélation automatique quand le timer arrive à 0
+        console.log('[OVERLAY] Timer terminé - Révélation automatique');
+        revealAnswer();
+        return;
+      }
+      
+      state.timerId = requestAnimationFrame(tick);
+    });
+  }
+
+  /**
+   * Met à jour le label du timer
+   */
+  function updateTimerLabel(seconds) {
+    DOM.timerText.textContent = `${seconds}s`;
+  }
+
+  /**
+   * Arrête le timer
+   */
+  function clearTimer() {
+    if (state.timerId) {
+      cancelAnimationFrame(state.timerId);
+      state.timerId = null;
+    }
+    
+    // Arrête la musique du timer
+    if (state.timerAudio) {
+      state.timerAudio.pause();
+      state.timerAudio.currentTime = 0;
+      state.timerAudio = null;
+    }
+    
+    // Fige la barre
+    if (DOM.timerFill) {
+      const currentWidth = DOM.timerFill.getBoundingClientRect().width;
+      const parentWidth = DOM.timerFill.parentElement.getBoundingClientRect().width;
+      const percentage = (currentWidth / parentWidth) * 100;
+      DOM.timerFill.style.transition = 'none';
+      DOM.timerFill.style.width = `${percentage}%`;
+    }
+  }
+
+  // Pas de sélection de réponse par le public
+  // L'admin sélectionne la réponse depuis l'interface admin
+
+  // ========================
+  // ANSWER REVEAL
+  // ========================
+
+  /**
+   * Révèle la bonne réponse
+   */
+  function revealAnswer() {
+    if (!state.currentQuestion) {
+      console.warn('[OVERLAY] Pas de question actuelle');
+      return;
+    }
+    
+    clearTimer();
+    
+    const correctIndex = Number(state.currentQuestion.bonneReponse);
+    const answers = DOM.answers.querySelectorAll('.answer');
+    
+    answers.forEach((btn, idx) => {
+      btn.classList.add('revealed');
+      
+      if (idx === correctIndex) {
+        // La bonne réponse est toujours verte
+        btn.classList.add('correct', 'pulse');
+      } else if (idx === state.selectedAnswerIndex) {
+        // La réponse sélectionnée par l'admin : rouge si fausse
+        btn.classList.add('wrong');
+      }
+    });
+    
+    // Joue le son approprié
+    if (state.selectedAnswerIndex === correctIndex) {
+      playSound('correct');
+    } else if (state.selectedAnswerIndex !== null) {
+      playSound('wrong');
+    }
+    
+    // L'explication n'est affichée que côté admin, pas sur l'overlay public
+    console.log('[OVERLAY] Réponse révélée (correcte:', correctIndex, ', sélectionnée:', state.selectedAnswerIndex, ')');
+  }
+
+  // ========================
+  // AUDIO
+  // ========================
+
+  /**
+   * Joue un son audio
+   */
+  function playSound(soundType) {
+    try {
+      let soundFile;
+      let volume = 0.7;
+      
+      switch (soundType) {
+        case 'select':
+          soundFile = 'select.wav';
+          break;
+        case 'correct':
+          soundFile = 'correct.wav';
+          break;
+        case 'wrong':
+          soundFile = 'wrong.wav';
+          break;
+        case 'timer':
+          soundFile = '30secondes.wav';
+          volume = 0.4;
+          break;
+        default:
+          return;
+      }
+      
+      const audioUrl = `${CONFIG.apiUrl}/overlay/audio/${soundFile}`;
+      const audio = new Audio(audioUrl);
+      audio.volume = volume;
+      audio.play().catch(err => console.warn(`[OVERLAY] Son ${soundType} échoué:`, err));
+    } catch (err) {
+      console.warn('[OVERLAY] Erreur création audio:', err);
+    }
+  }
+
+  /**
+   * Joue la musique du timer
+   */
+  function playTimerSound() {
+    try {
+      const audioUrl = `${CONFIG.apiUrl}/overlay/audio/30secondes.wav`;
+      state.timerAudio = new Audio(audioUrl);
+      state.timerAudio.volume = 0.4;
+      state.timerAudio.loop = true;
+      state.timerAudio.play().catch(err => console.warn('[OVERLAY] Timer audio échoué:', err));
+    } catch (err) {
+      console.warn('[OVERLAY] Erreur création audio:', err);
+    }
+  }
+
+  // ========================
+  // INITIALIZATION
+  // ========================
+
+  /**
+   * Initialise le script au démarrage
+   */
+  function init() {
+    console.log('[OVERLAY] Démarrage de l\'overlay');
+    
+    // Récupère les boutons des réponses
+    DOM.answerButtons = Array.from(DOM.answers.querySelectorAll('.answer'));
+    
+    // Initialise la communication
+    initChannel();
+    
+    // Affiche l'écran d'attente
+    showWaitingScreen();
+    
+    console.log('[OVERLAY] Overlay prêt');
+  }
+
+  // Lance l'initialisation
+  init();
 })();

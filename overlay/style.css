@@ -88,6 +88,7 @@ body {
   z-index: 2;
   text-align: center;
   margin: 20px 0;
+  width: 100%;
 }
 
 .selection-title {
@@ -107,30 +108,13 @@ body {
 
 .selection-buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin-top: 16px;
 }
 
-.selection-btn {
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 200ms ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.selection-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(66, 232, 196, 0.3);
+.selection-item {
+  cursor: default;
 }
 
 .selection-info-panel {

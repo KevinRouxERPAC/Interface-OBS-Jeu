@@ -3,251 +3,310 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Quiz Overlay</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <title>Admin Quiz</title>
   <style>
-    :root {
-      font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
-      color: #e8ecff;
-      background: #0c1021;
-    }
-    body {
+    * {
       margin: 0;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 32px 20px;
-      background: radial-gradient(circle at 20% 20%, rgba(124,93,255,0.18), transparent 35%),
-                  radial-gradient(circle at 80% 10%, rgba(66,232,196,0.22), transparent 30%),
-                  #0c1021;
+      padding: 0;
+      box-sizing: border-box;
     }
-    .card {
-      width: min(900px, 100%);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+
+    body {
+      font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f1326 0%, #1a1f3a 100%);
+      color: #f5f7ff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
       backdrop-filter: blur(10px);
     }
-    h1 {
-      margin: 0 0 16px;
-      font-size: 26px;
-      letter-spacing: 0.3px;
-    }
-    .controls {
+
+    .panel-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #42e8c4;
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* État et statut */
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #42e8c4, #7c5dff);
+      color: #0f1326;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12px;
       margin-bottom: 16px;
     }
-    button {
-      cursor: pointer;
-      border: none;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #42e8c4, #7c5dff);
-      color: #0c1021;
-      box-shadow: 0 12px 30px rgba(66, 232, 196, 0.2);
-      transition: transform 160ms ease, box-shadow 160ms ease;
-    }
-    button.secondary {
-      background: rgba(255,255,255,0.1);
-      color: #f2f4ff;
-      box-shadow: none;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    button:hover { transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
-    .select-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(60px, 1fr));
-      gap: 8px;
-    }
-    .select-btn {
-      background: rgba(255,255,255,0.1);
-      color: #f2f4ff;
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: none;
-    }
-    .select-btn.active {
-      background: linear-gradient(135deg, #42e8c4, #7c5dff);
-      color: #0c1021;
-      border-color: transparent;
-      box-shadow: 0 10px 26px rgba(124, 93, 255, 0.25);
-    }
-    .sync-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .sync-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #666;
-      transition: all 300ms ease;
-    }
-    .sync-indicator.synced .sync-dot {
-      background: #4ade80;
-      box-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
-    }
-    .sync-indicator.waiting .sync-dot {
-      background: #fbbf24;
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 14px;
-    }
-    label { font-weight: 600; font-size: 13px; }
-    input {
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      outline: none;
-      font-weight: 600;
-    }
-    .question-box {
-      background: rgba(0,0,0,0.25);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-    }
-    .answers {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .answer {
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      font-weight: 600;
+
+    /* Sélections actuelles */
+    .selection-display {
+      background: rgba(66, 232, 196, 0.1);
+      border: 1px solid rgba(66, 232, 196, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
       font-size: 14px;
     }
-    .muted { color: #9fb0d3; font-size: 13px; }
-    .status { margin-top: 10px; font-weight: 600; }
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
+
+    .selection-display strong {
+      color: #42e8c4;
     }
-    .modal.active { display: flex; }
-    .modal-content {
-      background: #1a1f35;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px;
-      padding: 24px;
-      max-width: 500px;
-      width: 90%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    }
-    .modal h2 { margin: 0 0 16px; font-size: 20px; }
-    .modal-buttons {
+
+    /* Grille de boutons */
+    .buttons-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 10px;
-      margin-top: 16px;
+      margin-bottom: 16px;
     }
-    .modal-btn {
-      padding: 12px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.08);
-      color: #fff;
-      border-radius: 10px;
-      cursor: pointer;
+
+    button {
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #f5f7ff;
       font-weight: 600;
-      transition: all 160ms ease;
-    }
-    .modal-btn:hover {
-      background: rgba(255,255,255,0.15);
-      transform: translateY(-1px);
-    }
-    .modal-btn.selected {
-      background: linear-gradient(135deg, #42e8c4, #7c5dff);
-      color: #0c1021;
-      border-color: transparent;
-    }
-    .explication {
-      background: rgba(0,0,0,0.2);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-top: 8px;
+      cursor: pointer;
+      transition: all 200ms ease;
       font-size: 13px;
-      color: #9fb0d3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #42e8c4;
+      color: #42e8c4;
+      box-shadow: 0 8px 20px rgba(66, 232, 196, 0.2);
+      transform: translateY(-2px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Boutons spéciaux */
+    .btn-primary {
+      background: linear-gradient(135deg, #42e8c4, #7c5dff);
+      border: 1px solid rgba(66, 232, 196, 0.5);
+      color: #0f1326;
+      font-weight: 700;
+      width: 100%;
+      padding: 14px;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 12px 30px rgba(66, 232, 196, 0.3);
+    }
+
+    /* Affichage des données */
+    .data-display {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
       line-height: 1.5;
+    }
+
+    .data-display strong {
+      color: #42e8c4;
+    }
+
+    .data-display em {
+      color: #7c5dff;
+      font-style: italic;
+    }
+
+    /* Indicateurs de statut */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff6b6b;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.connected {
+      background: #4ade80;
+    }
+
+    .status-dot.waiting {
+      background: #fbbf24;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Contrôle overlay quiz</h1>
-    
-    <div class="controls">
-      <button id="btn-start-selection">Démarrer la sélection</button>
-      <button id="btn-launch-question" class="secondary" style="display:none;">Lancer la question</button>
-      <button id="btn-reveal" class="secondary">Révéler la réponse</button>
-      <button id="btn-timer" class="secondary">Relancer le timer</button>
-    </div>
+  <div class="container">
+    <!-- ==================== LEFT PANEL: CONTRÔLES ==================== -->
+    <div class="panel">
+      <div class="panel-title">🎮 Contrôles</div>
 
-    <div class="field" id="step-level" style="display:none;">
-      <label>🎯 Étape 1 : Sélectionner une difficulté</label>
-      <div class="select-grid" id="levels-grid">
-        <p style="grid-column: 1/-1; margin: 0; color: #9fb0d3; font-size: 13px;">Cliquez sur "Démarrer la sélection" pour commencer</p>
+      <!-- Statut global -->
+      <div class="status-indicator">
+        <span class="status-dot connected" id="status-dot"></span>
+        <span id="status-text">État: EN ATTENTE</span>
       </div>
-    </div>
 
-    <div class="field" id="step-category" style="display:none;">
-      <label>📂 Étape 2 : Sélectionner une catégorie</label>
-      <div class="select-grid" id="categories-grid">
-        <p style="grid-column: 1/-1; margin: 0; color: #9fb0d3; font-size: 13px;">Sélectionnez d'abord une difficulté</p>
+      <!-- ===== SECTION: ATTENTE ===== -->
+      <div id="section-waiting">
+        <div class="status-badge">État: ATTENTE</div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          En attente de sélection. Cliquez sur le bouton ci-dessous pour démarrer le quiz.
+        </p>
+        <button class="btn-primary" id="btn-start-selection">
+          🎬 Nouvelle Sélection
+        </button>
       </div>
-    </div>
 
-    <div class="field" id="step-theme" style="display:none;">
-      <label>🎨 Étape 3 : Thème sélectionné</label>
-      <div id="theme-display" style="padding: 12px 14px; background: rgba(66, 232, 196, 0.1); border: 1px solid rgba(66, 232, 196, 0.3); border-radius: 10px; color: #9fb0d3; font-size: 13px; font-weight: 600; font-size: 16px;">(En attente...)</div>
-    </div>
-
-    <div class="field">
-      <label>Préselectionner une réponse</label>
-      <div class="select-grid" id="select-grid">
-        <button class="select-btn" data-index="0">A</button>
-        <button class="select-btn" data-index="1">B</button>
-        <button class="select-btn" data-index="2">C</button>
-        <button class="select-btn" data-index="3">D</button>
+      <!-- ===== SECTION: SÉLECTION DIFFICULTÉ ===== -->
+      <div id="section-level-selection" style="display: none;">
+        <div class="status-badge">État: SÉLECTION DIFFICULTÉ</div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          Choisissez un niveau de difficulté.
+        </p>
+        <div class="buttons-grid" id="levels-grid"></div>
       </div>
-    </div>
 
-    <div class="question-box">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <div class="muted">Question en cours</div>
-        <div class="sync-indicator" id="sync-indicator">
-          <span class="sync-dot"></span>
-          <span class="sync-text">En attente...</span>
+      <!-- ===== SECTION: SÉLECTION CATÉGORIE ===== -->
+      <div id="section-category-selection" style="display: none;">
+        <div class="status-badge">État: SÉLECTION CATÉGORIE</div>
+        <div class="selection-display">
+          Difficulté: <strong id="display-level">-</strong>
+        </div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          Choisissez une catégorie.
+        </p>
+        <div class="buttons-grid" id="categories-grid"></div>
+      </div>
+
+      <!-- ===== SECTION: SÉLECTION THÈME ===== -->
+      <div id="section-theme-selection" style="display: none;">
+        <div class="status-badge">État: SÉLECTION THÈME</div>
+        <div class="selection-display">
+          Difficulté: <strong id="display-level-2">-</strong> | Catégorie: <strong id="display-category">-</strong>
+        </div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          Tirez un thème aléatoire.
+        </p>
+        <button class="btn-primary" id="btn-draw-theme">
+          🎲 Tirer un Thème
+        </button>
+      </div>
+
+      <!-- ===== SECTION: ATTENTE QUESTION ===== -->
+      <div id="section-question-waiting" style="display: none;">
+        <div class="status-badge">État: ATTENTE QUESTION</div>
+        <div class="selection-display">
+          Difficulté: <strong id="display-level-3">-</strong> | 
+          Catégorie: <strong id="display-category-2">-</strong> | 
+          Thème: <strong id="display-theme">-</strong>
+        </div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          Prêt à lancer une question.
+        </p>
+        <button class="btn-primary" id="btn-launch-question">
+          🚀 Lancer la Question
+        </button>
+      </div>
+
+      <!-- ===== SECTION: QUESTION EN COURS ===== -->
+      <div id="section-question-active" style="display: none;">
+        <div class="status-badge">État: QUESTION EN COURS</div>
+        <div class="selection-display">
+          Réponse correcte: <strong id="display-correct-answer">-</strong>
+        </div>
+        <p style="font-size: 13px; color: #9fb0d3; margin-bottom: 12px;">
+          Gérez la question actuelle.
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <button id="btn-reveal-answer">✅ Révéler Réponse</button>
+          <button id="btn-new-question">📋 Nouvelle Question</button>
+          <button id="btn-restart-selection" style="grid-column: 1/-1;">🎬 Nouvelle Sélection</button>
         </div>
       </div>
-      <div id="q-text">(en attente)</div>
-      <div class="answers" id="q-answers"></div>
-      <div id="q-explication" class="explication" style="display:none;"></div>
-      <div class="status" id="status">Overlay non synchronisé...</div>
+    </div>
+
+    <!-- ==================== RIGHT PANEL: INFORMATIONS ==================== -->
+    <div class="panel">
+      <div class="panel-title">📊 Informations</div>
+
+      <!-- État actuel -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 14px; color: #42e8c4; margin-bottom: 8px;">État Actuel:</h3>
+        <div class="data-display" id="current-state">
+          <strong>Statut:</strong> EN ATTENTE<br>
+          <strong>Niveau:</strong> -<br>
+          <strong>Catégorie:</strong> -<br>
+          <strong>Thème:</strong> -
+        </div>
+      </div>
+
+      <!-- Question actuelle -->
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 14px; color: #42e8c4; margin-bottom: 8px;">Question Actuelle:</h3>
+        <div class="data-display" id="current-question">
+          <em>Aucune question chargée</em>
+        </div>
+      </div>
+
+      <!-- Journal d'événements -->
+      <div>
+        <h3 style="font-size: 14px; color: #42e8c4; margin-bottom: 8px;">Journal:</h3>
+        <div class="data-display" id="event-log" style="max-height: 300px;">
+          <em style="color: #9fb0d3;">En attente d'événements...</em>
+        </div>
+      </div>
     </div>
   </div>
 
