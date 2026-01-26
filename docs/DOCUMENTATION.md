@@ -169,21 +169,55 @@ curl http://localhost:3000/health
 
 ### Configuration de la Clé API
 
+> 📖 **Documentation complète :** Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour une explication détaillée de l'utilité de la clé API.
+
+#### Pourquoi la clé API est nécessaire en production ?
+
+La clé API protège votre serveur contre les accès non autorisés. **Sans clé API en production**, n'importe qui sur Internet pourrait :
+
+- 🛑 **Arrêter votre serveur** - Interrompre votre stream en cours
+- ⚠️ **Envoyer des commandes malveillantes** - Contrôler votre overlay pendant le stream
+- 🔧 **Modifier l'état de l'overlay** - Désynchroniser ou casser l'affichage
+- 👁️ **Espionner vos commandes** - Voir ce que vous préparez avant l'affichage
+
+**Endpoints protégés par la clé API :**
+- `POST /shutdown` - Arrêt du serveur
+- `POST /command` - Envoi de commandes
+- `GET /command` - Lecture des commandes
+- `POST /state` - Modification de l'état
+- `GET /state` - Lecture de l'état
+
 #### En développement
-La clé API est optionnelle si elle n'est pas définie dans `.env`.
+La clé API est **optionnelle**. Le serveur accepte toutes les requêtes pour faciliter le développement.
 
 #### En production
-La clé API est **requise**. Définissez dans `.env`:
+La clé API est **obligatoire**. Définissez dans `.env`:
 ```bash
 API_KEY=votre-clé-secrète-très-longue
 NODE_ENV=production
 ```
 
-#### Utilisation depuis l'overlay/admin
-Les clés API sont automatiquement envoyées via le header `X-API-Key` si stockées dans `localStorage` :
-```javascript
-localStorage.setItem('quiz-api-key', 'votre-clé');
+**Générer une clé API sécurisée :**
+```bash
+# Option 1 : Utiliser Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Option 2 : Utiliser un générateur en ligne
+# https://www.random.org/strings/
 ```
+
+#### Utilisation depuis l'overlay/admin
+
+**Pour l'overlay dans OBS :**
+- URL : `http://localhost:3000/overlay?apiKey=VOTRE_CLE_API`
+- La clé peut être passée en paramètre d'URL pour OBS Browser Source
+
+**Pour l'admin :**
+- La clé peut être stockée dans `localStorage` :
+  ```javascript
+  localStorage.setItem('quiz-api-key', 'votre-clé');
+  ```
+- Ou passée en paramètre d'URL : `http://localhost:3000/admin?apiKey=VOTRE_CLE_API`
 
 ### Configuration Google Sheets (optionnel)
 
@@ -242,6 +276,7 @@ L'API tentera d'abord de lire le Sheet, sinon elle retombera sur `data/questions
 
 1. **Créez une Browser Source**
    - URL: `http://localhost:3000/overlay`
+   - En production avec clé API : `http://votre-serveur.com:3000/overlay?apiKey=VOTRE_CLE_API`
    - Largeur: 1920
    - Hauteur: 200 (ajustez selon vos besoins)
    - Custom CSS: (optionnel, le fond est déjà transparent)
@@ -250,35 +285,38 @@ L'API tentera d'abord de lire le Sheet, sinon elle retombera sur `data/questions
 
 3. **Cliquez sur le Web-Hook Interactions** pour autoriser OBS
 
+**Note :** En mode développement, aucune clé API n'est nécessaire. En production, la clé API est requise pour la synchronisation.
+
 ---
 
 ## API Documentation
 
 ### Endpoints disponibles
 
-Tous les endpoints (sauf `/health`) requièrent l'en-tête `X-API-Key`.
+#### Endpoints publics (sans authentification)
 
-#### Questions
+- `GET /health` - Vérifier que le serveur est actif
+- `GET /overlay` - Page d'affichage overlay (lecture seule)
+- `GET /admin` - Interface admin
 
+#### Endpoints protégés (requièrent `X-API-Key`)
+
+Tous les endpoints ci-dessous nécessitent l'en-tête `X-API-Key` en production :
+
+**Questions**
 - `GET /random?levelId=X&categoryId=Y&themeId=Z` - Question aléatoire avec filtres optionnels
 - `GET /levels` - Liste des niveaux de difficulté
 - `GET /categories` - Liste des catégories
 - `GET /themes?categoryId=X` - Thèmes d'une catégorie
 
-#### Synchronisation
-
+**Synchronisation**
 - `POST /command` - Envoyer une commande (admin → overlay)
 - `GET /command` - Lire la dernière commande
 - `POST /state` - Mettre à jour l'état de l'overlay
 - `GET /state` - Lire l'état actuel
 
-#### Santé
-
-- `GET /health` - Vérifier que le serveur est actif (public)
-
-#### Arrêt du serveur
-
-- `POST /shutdown` - Arrêter le serveur (protégé par API Key)
+**Administration**
+- `POST /shutdown` - Arrêter le serveur
 
 ### Format des Données
 
@@ -367,6 +405,8 @@ Tous les endpoints (sauf `/health`) requièrent l'en-tête `X-API-Key`.
 
 ## Sécurité
 
+> 📖 **Documentation complète :** Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour une explication détaillée de la sécurité.
+
 ### Checklist de sécurité
 
 - [x] CORS restreint à `ALLOWED_ORIGINS`
@@ -380,7 +420,7 @@ Tous les endpoints (sauf `/health`) requièrent l'en-tête `X-API-Key`.
 ### Checklist avant production
 
 - [ ] Définir `NODE_ENV=production`
-- [ ] Définir `API_KEY` avec une clé forte
+- [ ] Définir `API_KEY` avec une clé forte (voir [`SECURITE_API_KEY.md`](SECURITE_API_KEY.md))
 - [ ] Définir `ALLOWED_ORIGINS` correctement
 - [ ] Définir `LOG_LEVEL=info` (pas debug)
 - [ ] Vérifier que `.env` n'est pas dans git
@@ -486,7 +526,8 @@ npm run dev
 - Ouvrez la console du navigateur (F12)
 - Cherchez les erreurs en rouge
 - Vérifiez que le serveur tourne (check `/health`)
-- Essayez en mode "développement" sans clé API d'abord
+- En développement : aucune clé API nécessaire
+- En production : vérifiez que la clé API est correctement configurée
 
 ### Les données ne chargent pas
 
@@ -497,7 +538,9 @@ npm run dev
 ### Erreur : "Clé API invalide"
 
 - Vérifiez que `X-API-Key` est envoyée dans les en-têtes
-- En développement, assurez-vous que `API_KEY` n'est pas définie (optionnelle)
+- En développement : la clé API est optionnelle
+- En production : vérifiez que `API_KEY` dans `.env` correspond à celle utilisée
+- Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour plus de détails
 
 ### Erreur : "CORS non autorisé"
 
@@ -586,6 +629,7 @@ Pour toute question ou problème :
 1. Consultez la section [Dépannage](#dépannage)
 2. Vérifiez les logs du serveur (`LOG_LEVEL=debug`)
 3. Consultez la console du navigateur (F12)
+4. Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour les questions sur la sécurité
 
 ---
 

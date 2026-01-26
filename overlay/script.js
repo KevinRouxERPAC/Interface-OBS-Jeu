@@ -9,10 +9,17 @@
   // ========================
   // CONFIG & CONSTANTS
   // ========================
+  // Récupérer l'API Key depuis l'URL (pour OBS) ou localStorage (pour navigateur)
+  // En développement, pas de clé API nécessaire
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const urlParams = new URLSearchParams(window.location.search);
+  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
+  const apiKeyFromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('quiz-api-key') : null;
+  
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl: 'http://localhost:3000',
-    apiKey: localStorage.getItem('quiz-api-key') || '',
+    apiKey: isDev ? '' : (apiKeyFromUrl || apiKeyFromStorage || ''),
     pollInterval: 500, // 500ms pour OBS
     defaultTimerDuration: 30, // secondes
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections

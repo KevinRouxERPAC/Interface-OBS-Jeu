@@ -11,7 +11,10 @@
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl: 'http://localhost:3000',
-    apiKey: localStorage.getItem('quiz-api-key') || '',
+    // En développement, pas de clé API nécessaire
+    apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+      ? '' 
+      : (localStorage.getItem('quiz-api-key') || ''),
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
@@ -113,22 +116,6 @@
       console.log('[ADMIN] Envoi commande:', cmd);
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'admin.js:110',
-        message: 'sendCommand called',
-        data: { cmdType: cmd.type, retryCount: retryCount },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'C'
-      })
-    }).catch(() => {});
-    // #endregion agent log
-    
     // Via BroadcastChannel (onglets navigateur)
     if (channel) {
       channel.postMessage(cmd);
@@ -143,22 +130,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(cmd)
         });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'admin.js:130',
-            message: 'sendCommand response',
-            data: { status: res.status, ok: res.ok, retryCount: retryCount },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'C'
-          })
-        }).catch(() => {});
-        // #endregion agent log
         
         if (!res.ok) {
           if (res.status === 401) {
@@ -184,22 +155,6 @@
         if (CONFIG.isDevelopment) {
           console.warn('[ADMIN] Erreur envoi serveur:', err);
         }
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'admin.js:145',
-            message: 'sendCommand error',
-            data: { error: err.message, retryCount: retryCount, willRetry: retryCount <= CONFIG.maxRetries },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'C'
-          })
-        }).catch(() => {});
-        // #endregion agent log
         
         // Retry automatique avec backoff exponentiel (sauf pour les erreurs 401/403)
         if (retryCount <= CONFIG.maxRetries && !err.message?.includes('401') && !err.message?.includes('403')) {
