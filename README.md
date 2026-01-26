@@ -4,12 +4,16 @@ Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questi
 
 > **🆕 v1.1 - Améliorations** : Sécurité renforcée (CORS + API Key), architecture refactorisée, logging centralisé, validation des données, documentation complète.
 
-## 📚 Documentation rapide
+## 📚 Documentation
 
 - **[🚀 QUICK_START.md](./QUICK_START.md)** - COMMENCEZ PAR LÀ ! (30 secondes)
-- [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - Endpoints API, configuration, Google Sheets
-- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - Architecture technique 
-- [SECURITY_CHECKLIST.md](./SECURITY_CHECKLIST.md) - Sécurité et bonnes pratiques
+- **[📖 Documentation complète](./docs/)** - Tous les guides et références
+
+### Guides principaux
+- [API Documentation](./docs/API_DOCUMENTATION.md) - Endpoints API, configuration, Google Sheets
+- [Architecture](./docs/PROJECT_STRUCTURE.md) - Structure technique du projet
+- [Sécurité](./docs/SECURITY_CHECKLIST.md) - Checklist de sécurité et bonnes pratiques
+- [Flux complet](./docs/FLUX_COMPLET.md) - Description détaillée du flux de jeu
 
 ## Structure
 

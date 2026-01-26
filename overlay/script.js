@@ -14,7 +14,11 @@
     apiUrl: 'http://localhost:3000',
     apiKey: localStorage.getItem('quiz-api-key') || '',
     pollInterval: 500, // 500ms pour OBS
-    defaultTimerDuration: 30 // secondes
+    defaultTimerDuration: 30, // secondes
+    selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
+    errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
+    maxRetries: 3, // nombre max de tentatives de reconnexion
+    isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   };
 
   // ========================
@@ -85,30 +89,43 @@
    * Initialise la communication avec l'admin
    */
   function initChannel() {
-    console.log('[OVERLAY] Initialisation de la communication');
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Initialisation de la communication');
+    }
     
     // BroadcastChannel (onglets navigateur)
     if ('BroadcastChannel' in window) {
       try {
         channel = new BroadcastChannel(CONFIG.channelName);
         channel.onmessage = (evt) => {
-          console.log('[OVERLAY] Commande reçue:', evt.data);
+          if (CONFIG.isDevelopment) {
+            console.log('[OVERLAY] Commande reçue:', evt.data);
+          }
           handleCommand(evt.data);
         };
-        console.log('[OVERLAY] BroadcastChannel activé');
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] BroadcastChannel activé');
+        }
       } catch (err) {
-        console.warn('[OVERLAY] BroadcastChannel échoué:', err);
+        if (CONFIG.isDevelopment) {
+          console.warn('[OVERLAY] BroadcastChannel échoué:', err);
+        }
       }
     }
 
     // Polling serveur (PRINCIPAL pour OBS)
-    console.log('[OVERLAY] Polling serveur chaque', CONFIG.pollInterval, 'ms');
-    setInterval(pollServer, CONFIG.pollInterval);
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Polling serveur chaque', CONFIG.pollInterval, 'ms');
+    }
+    if (CONFIG.apiUrl) {
+      setInterval(pollServer, CONFIG.pollInterval);
+    }
   }
 
   /**
-   * Récupère les dernières commandes du serveur
+   * Récupère les dernières commandes du serveur avec retry logic
    */
+  let retryCount = 0;
   async function pollServer() {
     try {
       const url = `${CONFIG.apiUrl}/command?t=${Date.now()}`;
@@ -116,8 +133,13 @@
       const res = await fetch(url, { headers, cache: 'no-store' });
       
       if (!res.ok) {
-        logErrorThrottled(`Serveur inaccessible (${res.status})`);
+        if (res.status === 401 || res.status === 403) {
+          logErrorThrottled(`Authentification échouée (${res.status})`);
+        } else {
+          logErrorThrottled(`Serveur inaccessible (${res.status})`);
+        }
         updateConnectionStatus(false);
+        retryCount++;
         return;
       }
       
@@ -127,10 +149,18 @@
       
       state.lastServerCommandId = payload.id;
       updateConnectionStatus(true);
+      retryCount = 0; // Reset retry count on success
       handleCommand(payload.cmd);
     } catch (err) {
+      retryCount++;
       logErrorThrottled(`Serveur déconnecté: ${err.message}`);
       updateConnectionStatus(false);
+      
+      // Retry automatique avec backoff exponentiel
+      if (retryCount <= CONFIG.maxRetries && CONFIG.apiUrl) {
+        const delay = CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1);
+        setTimeout(() => pollServer(), delay);
+      }
     }
   }
 
@@ -140,7 +170,9 @@
   function logErrorThrottled(msg) {
     const now = Date.now();
     if (now - lastErrorLog.time > 5000) {
-      console.warn('[OVERLAY]', msg);
+      if (CONFIG.isDevelopment) {
+        console.warn('[OVERLAY]', msg);
+      }
       lastErrorLog.time = now;
     }
   }
@@ -169,7 +201,9 @@
   function handleCommand(cmd) {
     if (!cmd || typeof cmd !== 'object') return;
     
-    console.log('[OVERLAY] Traitement commande:', cmd.type);
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Traitement commande:', cmd.type);
+    }
     updateConnectionStatus(true);
     
     switch (cmd.type) {
@@ -207,7 +241,9 @@
         break;
         
       default:
-        console.warn('[OVERLAY] Commande inconnue:', cmd.type);
+        if (CONFIG.isDevelopment) {
+          console.warn('[OVERLAY] Commande inconnue:', cmd.type);
+        }
     }
   }
 
@@ -230,7 +266,9 @@
     // Joue le son de sélection
     playSound('select');
     
-    console.log('[OVERLAY] Réponse surlignée:', index);
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Réponse surlignée:', index);
+    }
   }
 
   // ========================
@@ -247,7 +285,9 @@
     DOM.themeScreen.style.display = 'none';
     DOM.questionScreen.style.display = 'none';
     clearTimer();
-    console.log('[OVERLAY] Écran d\'attente affiché');
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Écran d\'attente affiché');
+    }
   }
 
   /**
@@ -334,7 +374,9 @@
     DOM.themeName.textContent = theme.name || 'Thème';
     DOM.themeDescription.textContent = theme.description || '';
     
-    console.log('[OVERLAY] Thème affiché:', theme.name);
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Thème affiché:', theme.name);
+    }
   }
 
   /**
@@ -377,7 +419,9 @@
     // Démarre le timer
     restartTimer(state.timerDuration);
     
-    console.log('[OVERLAY] Question affichée:', question.question?.substring(0, 50));
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Question affichée:', question.question?.substring(0, 50));
+    }
   }
 
   // ========================
@@ -418,7 +462,9 @@
       if (remaining <= 0) {
         clearTimer();
         // Révélation automatique quand le timer arrive à 0
-        console.log('[OVERLAY] Timer terminé - Révélation automatique');
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] Timer terminé - Révélation automatique');
+        }
         revealAnswer();
         return;
       }
@@ -472,7 +518,9 @@
    */
   function revealAnswer() {
     if (!state.currentQuestion) {
-      console.warn('[OVERLAY] Pas de question actuelle');
+      if (CONFIG.isDevelopment) {
+        console.warn('[OVERLAY] Pas de question actuelle');
+      }
       return;
     }
     
@@ -501,7 +549,9 @@
     }
     
     // L'explication n'est affichée que côté admin, pas sur l'overlay public
-    console.log('[OVERLAY] Réponse révélée (correcte:', correctIndex, ', sélectionnée:', state.selectedAnswerIndex, ')');
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Réponse révélée (correcte:', correctIndex, ', sélectionnée:', state.selectedAnswerIndex, ')');
+    }
   }
 
   // ========================
@@ -534,12 +584,22 @@
           return;
       }
       
-      const audioUrl = `${CONFIG.apiUrl}/overlay/audio/${soundFile}`;
+      // Fallback vers chemin relatif si API non disponible
+      const audioUrl = CONFIG.apiUrl && CONFIG.apiUrl !== 'http://localhost:3000'
+        ? `${CONFIG.apiUrl}/overlay/audio/${soundFile}`
+        : `audio/${soundFile}`;
+      
       const audio = new Audio(audioUrl);
       audio.volume = volume;
-      audio.play().catch(err => console.warn(`[OVERLAY] Son ${soundType} échoué:`, err));
+      audio.play().catch(err => {
+        if (CONFIG.isDevelopment) {
+          console.warn(`[OVERLAY] Son ${soundType} échoué:`, err);
+        }
+      });
     } catch (err) {
-      console.warn('[OVERLAY] Erreur création audio:', err);
+      if (CONFIG.isDevelopment) {
+        console.warn('[OVERLAY] Erreur création audio:', err);
+      }
     }
   }
 
@@ -548,13 +608,23 @@
    */
   function playTimerSound() {
     try {
-      const audioUrl = `${CONFIG.apiUrl}/overlay/audio/30secondes.wav`;
+      // Fallback vers chemin relatif si API non disponible
+      const audioUrl = CONFIG.apiUrl && CONFIG.apiUrl !== 'http://localhost:3000'
+        ? `${CONFIG.apiUrl}/overlay/audio/30secondes.wav`
+        : `audio/30secondes.wav`;
+      
       state.timerAudio = new Audio(audioUrl);
       state.timerAudio.volume = 0.4;
       state.timerAudio.loop = true;
-      state.timerAudio.play().catch(err => console.warn('[OVERLAY] Timer audio échoué:', err));
+      state.timerAudio.play().catch(err => {
+        if (CONFIG.isDevelopment) {
+          console.warn('[OVERLAY] Timer audio échoué:', err);
+        }
+      });
     } catch (err) {
-      console.warn('[OVERLAY] Erreur création audio:', err);
+      if (CONFIG.isDevelopment) {
+        console.warn('[OVERLAY] Erreur création audio:', err);
+      }
     }
   }
 
@@ -566,7 +636,9 @@
    * Initialise le script au démarrage
    */
   function init() {
-    console.log('[OVERLAY] Démarrage de l\'overlay');
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Démarrage de l\'overlay');
+    }
     
     // Récupère les boutons des réponses
     DOM.answerButtons = Array.from(DOM.answers.querySelectorAll('.answer'));
@@ -577,7 +649,9 @@
     // Affiche l'écran d'attente
     showWaitingScreen();
     
-    console.log('[OVERLAY] Overlay prêt');
+    if (CONFIG.isDevelopment) {
+      console.log('[OVERLAY] Overlay prêt');
+    }
   }
 
   // Lance l'initialisation

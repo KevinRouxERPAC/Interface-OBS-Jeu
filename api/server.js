@@ -1,6 +1,7 @@
 const config = require('./config');
 const Logger = require('./logger');
-const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion } = require('./validators');
+const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion, validateId, validateLevels, validateCategories, validateThemes } = require('./validators');
+const rateLimit = require('express-rate-limit');
 
 // Paramètres Google Sheets (optionnels)
 const {
@@ -49,6 +50,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Rate limiting pour protéger contre les attaques DoS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Appliquer le rate limiting à toutes les routes
+app.use(limiter);
 
 // Middleware de validation de la clé API
 const validateApiKey = (req, res, next) => {
@@ -115,8 +128,25 @@ app.get('/state', validateApiKey, (_req, res) => {
 let sheetsClient = null;
 
 function loadQuestions() {
-  const raw = fs.readFileSync(questionsPath, 'utf-8');
-  return JSON.parse(raw);
+  try {
+    const raw = fs.readFileSync(questionsPath, 'utf-8');
+    const questions = JSON.parse(raw);
+    if (!Array.isArray(questions)) {
+      throw new Error('Format invalide: questions.json doit être un tableau');
+    }
+    // Valider chaque question
+    const validQuestions = questions.filter(q => {
+      const isValid = validateQuestion(q);
+      if (!isValid) {
+        logger.warn('DATA', `Question invalide ignorée: ${q.id || 'sans ID'}`);
+      }
+      return isValid;
+    });
+    return validQuestions;
+  } catch (err) {
+    logger.error('DATA', `Erreur chargement questions.json: ${err.message}`);
+    return [];
+  }
 }
 
 function pickRandom(list) {
@@ -139,16 +169,17 @@ function buildSheetsClient() {
 }
 
 async function fetchQuestionsFromSheets() {
-  const client = buildSheetsClient();
-  
-  // Lecture de tous les onglets en parallèle
-  const [questionsRes, themesRes, categoriesRes, levelsRes, matieresRes] = await Promise.all([
-    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: questionsRange }),
-    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: themesRange }),
-    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: categoriesRange }),
-    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: levelsRange }),
-    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: matieresRange })
-  ]);
+  try {
+    const client = buildSheetsClient();
+    
+    // Lecture de tous les onglets en parallèle
+    const [questionsRes, themesRes, categoriesRes, levelsRes, matieresRes] = await Promise.all([
+      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: questionsRange }),
+      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: themesRange }),
+      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: categoriesRange }),
+      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: levelsRange }),
+      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: matieresRange })
+    ]);
 
   const questionsRows = questionsRes.data.values || [];
   const themesRows = themesRes.data.values || [];
@@ -211,8 +242,12 @@ async function fetchQuestionsFromSheets() {
     };
   }).filter(q => q.question && q.propositions.length === 4);
 
-  if (!mapped.length) throw new Error('Données Sheets invalides');
-  return mapped;
+    if (!mapped.length) throw new Error('Données Sheets invalides');
+    return mapped;
+  } catch (err) {
+    logger.error('SHEETS', `Erreur chargement Google Sheets: ${err.message}`);
+    throw err; // Re-lancer pour déclencher le fallback JSON
+  }
 }
 
 app.get('/levels', async (_req, res) => {
@@ -225,14 +260,23 @@ app.get('/levels', async (_req, res) => {
       });
       const levelsRows = levelsRes.data.values || [];
       const levels = levelsRows.map(row => ({ id: row[0], name: row[1] }));
+      if (!validateLevels(levels)) {
+        logger.warn('DATA', 'Niveaux Sheets invalides, fallback JSON');
+        throw new Error('Format invalide');
+      }
       return res.json(levels);
     }
     // Fallback JSON local
-    const levelsJSON = fs.readFileSync(path.join(__dirname, '..', 'data', 'levels.json'), 'utf-8');
+    const levelsPath = path.join(__dirname, '..', 'data', 'levels.json');
+    const levelsJSON = fs.readFileSync(levelsPath, 'utf-8');
     const levels = JSON.parse(levelsJSON);
+    if (!validateLevels(levels)) {
+      logger.error('DATA', 'Format levels.json invalide');
+      return res.status(500).json({ error: 'Format de données invalide' });
+    }
     res.json(levels);
   } catch (err) {
-    console.error(err);
+    logger.error('API', `Erreur chargement niveaux: ${err.message}`);
     res.status(500).json({ error: 'Impossible de charger les niveaux' });
   }
 });
@@ -251,14 +295,23 @@ app.get('/categories', async (_req, res) => {
         name: row[1], 
         idMatiere: row[4] 
       }));
+      if (!validateCategories(categories)) {
+        logger.warn('DATA', 'Catégories Sheets invalides, fallback JSON');
+        throw new Error('Format invalide');
+      }
       return res.json(categories);
     }
     // Fallback JSON local
-    const categoriesJSON = fs.readFileSync(path.join(__dirname, '..', 'data', 'categories.json'), 'utf-8');
+    const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
+    const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
     const categories = JSON.parse(categoriesJSON);
+    if (!validateCategories(categories)) {
+      logger.error('DATA', 'Format categories.json invalide');
+      return res.status(500).json({ error: 'Format de données invalide' });
+    }
     res.json(categories);
   } catch (err) {
-    console.error(err);
+    logger.error('API', `Erreur chargement catégories: ${err.message}`);
     res.status(500).json({ error: 'Impossible de charger les catégories' });
   }
 });
@@ -266,6 +319,12 @@ app.get('/categories', async (_req, res) => {
 app.get('/themes', async (req, res) => {
   try {
     const categoryId = req.query.categoryId;
+    
+    // Valider categoryId si fourni
+    if (categoryId && !validateId(String(categoryId))) {
+      return res.status(400).json({ error: 'ID de catégorie invalide' });
+    }
+    
     if (sheetId && saEmail && saKey) {
       const client = buildSheetsClient();
       const themesRes = await client.spreadsheets.values.get({ 
@@ -279,23 +338,34 @@ app.get('/themes', async (req, res) => {
         name: row[2] 
       }));
       
+      if (!validateThemes(themes)) {
+        logger.warn('DATA', 'Thèmes Sheets invalides, fallback JSON');
+        throw new Error('Format invalide');
+      }
+      
       if (categoryId) {
-        themes = themes.filter(t => t.idCategory === categoryId);
+        themes = themes.filter(t => String(t.idCategory) === String(categoryId));
       }
       
       return res.json(themes);
     }
     // Fallback JSON local
-    const themesJSON = fs.readFileSync(path.join(__dirname, '..', 'data', 'themes.json'), 'utf-8');
+    const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
+    const themesJSON = fs.readFileSync(themesPath, 'utf-8');
     let themes = JSON.parse(themesJSON);
     
+    if (!validateThemes(themes)) {
+      logger.error('DATA', 'Format themes.json invalide');
+      return res.status(500).json({ error: 'Format de données invalide' });
+    }
+    
     if (categoryId) {
-      themes = themes.filter(t => t.idCategory === categoryId);
+      themes = themes.filter(t => String(t.idCategory) === String(categoryId));
     }
     
     res.json(themes);
   } catch (err) {
-    console.error(err);
+    logger.error('API', `Erreur chargement thèmes: ${err.message}`);
     res.status(500).json({ error: 'Impossible de charger les thèmes' });
   }
 });
@@ -304,40 +374,56 @@ app.get('/random', async (req, res) => {
   try {
     const { levelId, categoryId, themeId } = req.query;
     
+    // Valider les IDs si fournis
+    if (levelId && !validateId(String(levelId))) {
+      return res.status(400).json({ error: 'ID de niveau invalide' });
+    }
+    if (categoryId && !validateId(String(categoryId))) {
+      return res.status(400).json({ error: 'ID de catégorie invalide' });
+    }
+    if (themeId && !validateId(String(themeId))) {
+      return res.status(400).json({ error: 'ID de thème invalide' });
+    }
+    
+    let questions = [];
+    
     // Priorité Sheets si configuré
     if (sheetId && saEmail && saKey) {
-      let questions = await fetchQuestionsFromSheets();
-      
-      // Filtrer selon les critères
-      if (levelId) {
-        questions = questions.filter(q => {
-          // Récupérer l'ID du niveau depuis le nom
-          return q.niveau === levelId || q.idLevel === levelId;
-        });
+      try {
+        questions = await fetchQuestionsFromSheets();
+      } catch (err) {
+        logger.warn('API', 'Erreur Sheets, fallback JSON', { error: err.message });
+        // Fallback vers JSON local
+        questions = loadQuestions();
       }
-      
-      if (categoryId) {
-        questions = questions.filter(q => q.idCategory === categoryId);
-      }
-      
-      if (themeId) {
-        questions = questions.filter(q => q.idTheme === themeId);
-      }
-      
-      if (!questions.length) {
-        logger.warn('API', 'Aucune question trouvée avec critères', { levelId, categoryId, themeId });
-        return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
-      }
-      
-      return res.json(pickRandom(questions));
+    } else {
+      // Fallback JSON local
+      questions = loadQuestions();
     }
-
-    // Fallback JSON local
-    const questions = loadQuestions();
+    
+    // Filtrer selon les critères
+    if (levelId) {
+      questions = questions.filter(q => String(q.idLevel) === String(levelId));
+    }
+    
+    if (categoryId) {
+      questions = questions.filter(q => String(q.idCategory) === String(categoryId));
+    }
+    
+    if (themeId) {
+      questions = questions.filter(q => String(q.idTheme) === String(themeId));
+    }
+    
+    if (!questions.length) {
+      logger.warn('API', 'Aucune question trouvée avec critères', { levelId, categoryId, themeId });
+      return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
+    }
+    
     const selected = pickRandom(questions);
     if (!selected) {
       return res.status(404).json({ error: 'Aucune question disponible' });
     }
+    
     return res.json(selected);
   } catch (err) {
     logger.error('API', `Erreur chargement questions: ${err.message}`);

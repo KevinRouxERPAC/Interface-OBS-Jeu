@@ -1,4 +1,6 @@
-# Guide de Démarrage Rapide
+# 🚀 Guide de Démarrage Rapide
+
+> **Note :** Pour la documentation complète, consultez le dossier [docs/](./docs/)
 
 ## ⚡ 30 secondes pour tester
 

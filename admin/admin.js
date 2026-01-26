@@ -11,7 +11,11 @@
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl: 'http://localhost:3000',
-    apiKey: localStorage.getItem('quiz-api-key') || ''
+    apiKey: localStorage.getItem('quiz-api-key') || '',
+    selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
+    errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
+    maxRetries: 3, // nombre max de tentatives de reconnexion
+    isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   };
 
   // ========================
@@ -81,14 +85,20 @@
    * Initialise la communication avec l'overlay
    */
   function initChannel() {
-    console.log('[ADMIN] Initialisation de la communication');
+    if (CONFIG.isDevelopment) {
+      console.log('[ADMIN] Initialisation de la communication');
+    }
     
     if ('BroadcastChannel' in window) {
       try {
         channel = new BroadcastChannel(CONFIG.channelName);
-        console.log('[ADMIN] BroadcastChannel activé');
+        if (CONFIG.isDevelopment) {
+          console.log('[ADMIN] BroadcastChannel activé');
+        }
       } catch (err) {
-        console.warn('[ADMIN] BroadcastChannel échoué:', err);
+        if (CONFIG.isDevelopment) {
+          console.warn('[ADMIN] BroadcastChannel échoué:', err);
+        }
       }
     }
   }
@@ -96,21 +106,43 @@
   /**
    * Envoie une commande à l'overlay
    */
-  function sendCommand(cmd) {
-    console.log('[ADMIN] Envoi commande:', cmd);
+  let retryCount = 0;
+  async function sendCommand(cmd) {
+    if (CONFIG.isDevelopment) {
+      console.log('[ADMIN] Envoi commande:', cmd);
+    }
     
     // Via BroadcastChannel (onglets navigateur)
     if (channel) {
       channel.postMessage(cmd);
     }
     
-    // Via API serveur (OBS)
-    if (CONFIG.apiKey || navigator.onLine) {
-      fetchWithApiKey(`${CONFIG.apiUrl}/command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cmd)
-      }).catch(err => console.warn('[ADMIN] Erreur envoi serveur:', err));
+    // Via API serveur (OBS) avec retry logic
+    if (CONFIG.apiUrl && (CONFIG.apiKey || navigator.onLine)) {
+      try {
+        const res = await fetchWithApiKey(`${CONFIG.apiUrl}/command`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cmd)
+        });
+        
+        if (!res.ok && res.status !== 401 && res.status !== 403) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
+        retryCount = 0; // Reset on success
+      } catch (err) {
+        retryCount++;
+        if (CONFIG.isDevelopment) {
+          console.warn('[ADMIN] Erreur envoi serveur:', err);
+        }
+        
+        // Retry automatique avec backoff exponentiel
+        if (retryCount <= CONFIG.maxRetries) {
+          const delay = CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1);
+          setTimeout(() => sendCommand(cmd), delay);
+        }
+      }
     }
   }
 
@@ -136,19 +168,23 @@
     const timestamp = new Date().toLocaleTimeString('fr-FR');
     const entry = `[${timestamp}] ${msg}`;
     
-    console.log('[ADMIN]', msg);
+    if (CONFIG.isDevelopment) {
+      console.log('[ADMIN]', msg);
+    }
     
     // Ajoute au journal visuel
     const log = DOM.eventLog;
-    if (log.textContent.includes('En attente d\'événements')) {
+    if (log && log.textContent.includes('En attente d\'événements')) {
       log.innerHTML = '';
     }
     
-    const line = document.createElement('div');
-    line.textContent = entry;
-    line.style.marginBottom = '4px';
-    log.appendChild(line);
-    log.scrollTop = log.scrollHeight;
+    if (log) {
+      const line = document.createElement('div');
+      line.textContent = entry;
+      line.style.marginBottom = '4px';
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
   }
 
   // ========================
@@ -269,13 +305,21 @@
   async function loadLevels() {
     try {
       const res = await fetchWithApiKey(`${CONFIG.apiUrl}/levels`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const levels = await res.json();
+      if (!Array.isArray(levels)) {
+        throw new Error('Format de données invalide');
+      }
       state.allLevels = levels;
       renderLevelButtons();
       logEvent('✓ Difficultés chargées: ' + levels.length);
     } catch (err) {
-      console.error('[ADMIN] Erreur chargement niveaux:', err);
-      logEvent('✗ Erreur chargement difficultés');
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] Erreur chargement niveaux:', err);
+      }
+      logEvent('✗ Erreur chargement difficultés: ' + err.message);
     }
   }
 
@@ -285,13 +329,21 @@
   async function loadCategories() {
     try {
       const res = await fetchWithApiKey(`${CONFIG.apiUrl}/categories`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const categories = await res.json();
+      if (!Array.isArray(categories)) {
+        throw new Error('Format de données invalide');
+      }
       state.allCategories = categories;
       renderCategoryButtons();
       logEvent('✓ Catégories chargées: ' + categories.length);
     } catch (err) {
-      console.error('[ADMIN] Erreur chargement catégories:', err);
-      logEvent('✗ Erreur chargement catégories');
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] Erreur chargement catégories:', err);
+      }
+      logEvent('✗ Erreur chargement catégories: ' + err.message);
     }
   }
 
@@ -302,13 +354,21 @@
     try {
       const url = `${CONFIG.apiUrl}/themes?categoryId=${categoryId}`;
       const res = await fetchWithApiKey(url);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const themes = await res.json();
+      if (!Array.isArray(themes)) {
+        throw new Error('Format de données invalide');
+      }
       state.allThemes = themes;
       logEvent('✓ Thèmes chargés: ' + themes.length);
       return themes;
     } catch (err) {
-      console.error('[ADMIN] Erreur chargement thèmes:', err);
-      logEvent('✗ Erreur chargement thèmes');
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] Erreur chargement thèmes:', err);
+      }
+      logEvent('✗ Erreur chargement thèmes: ' + err.message);
       return [];
     }
   }
@@ -325,13 +385,24 @@
       
       const url = `${CONFIG.apiUrl}/random?${params.toString()}`;
       const res = await fetchWithApiKey(url);
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Aucune question trouvée avec ces critères');
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const question = await res.json();
+      if (!question || !question.question) {
+        throw new Error('Format de question invalide');
+      }
       state.currentQuestion = question;
       logEvent(`✓ Question chargée: "${question.question.substring(0, 40)}..."`);
       return question;
     } catch (err) {
-      console.error('[ADMIN] Erreur chargement question:', err);
-      logEvent('✗ Erreur chargement question');
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] Erreur chargement question:', err);
+      }
+      logEvent('✗ Erreur chargement question: ' + err.message);
       return null;
     }
   }
@@ -415,14 +486,14 @@
       selectedId: level.id
     });
     
-    // Attend 3s avant d'afficher les catégories côté overlay
+    // Attend avant d'afficher les catégories côté overlay
     setTimeout(() => {
       updateUI();
       sendCommand({
         type: 'SHOW_CATEGORIES_LIST',
         categories: state.allCategories
       });
-    }, 3000);
+    }, CONFIG.selectionDisplayDelay);
   }
 
   /**
@@ -444,10 +515,10 @@
       selectedId: category.id
     });
     
-    // Attend 3s avant d'afficher le bouton de tirage thème côté admin
+    // Attend avant d'afficher le bouton de tirage thème côté admin
     setTimeout(() => {
       updateUI();
-    }, 3000);
+    }, CONFIG.selectionDisplayDelay);
   }
 
   /**
@@ -591,7 +662,9 @@
   // ========================
 
   function init() {
-    console.log('[ADMIN] Démarrage de l\'admin');
+    if (CONFIG.isDevelopment) {
+      console.log('[ADMIN] Démarrage de l\'admin');
+    }
     initChannel();
     setupEventListeners();
     updateUI();
