@@ -6,7 +6,7 @@ $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $apiDir = Join-Path $projectRoot "api"
 $pidFile = Join-Path $apiDir ".server.pid"
 $apiUrl = "http://localhost:3000"
-$adminUrl = "$apiUrl/admin"
+$adminUrl = "$apiUrl/admin/admin.html"
 
 Push-Location $apiDir
 
