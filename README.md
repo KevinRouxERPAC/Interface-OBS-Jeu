@@ -6,30 +6,65 @@ Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questi
 
 ## 📚 Documentation
 
-- **[🚀 QUICK_START.md](./QUICK_START.md)** - COMMENCEZ PAR LÀ ! (30 secondes)
-- **[📖 Documentation complète](./docs/)** - Tous les guides et références
-
-### Guides principaux
-- [API Documentation](./docs/API_DOCUMENTATION.md) - Endpoints API, configuration, Google Sheets
-- [Architecture](./docs/PROJECT_STRUCTURE.md) - Structure technique du projet
-- [Sécurité](./docs/SECURITY_CHECKLIST.md) - Checklist de sécurité et bonnes pratiques
-- [Flux complet](./docs/FLUX_COMPLET.md) - Description détaillée du flux de jeu
+- **[📖 DOCUMENTATION.md](./DOCUMENTATION.md)** - **Documentation complète consolidée** (tout en un seul fichier)
 
 ## Structure
 
-- overlay/ : fichiers affichés dans la source navigateur OBS
-- admin/ : panneau de contrôle (ouvrir dans un navigateur)
-- data/questions.json : banque de questions locale
-- api/server.js : API optionnelle `/random` (Node.js)
+```
+Interface OBS Jeu/
+├── admin/              # Panneau de contrôle (ouvrir dans un navigateur)
+├── api/                # API backend Node.js
+├── data/               # Données JSON (questions, niveaux, catégories, thèmes)
+├── docs/               # Documentation
+├── overlay/            # Fichiers affichés dans la source navigateur OBS
+└── scripts/            # Scripts organisés par plateforme
+    ├── windows/        # Scripts PowerShell et batch
+    └── unix/           # Scripts bash
+```
 
-## Lancer rapidement (sans API)
+## 🚀 Lancer rapidement
 
-1. Ouvrez `overlay/index.html` dans OBS via une Browser Source (URL file:// ou http:// via un petit serveur local).
+### Option 1 : Application graphique (Windows - Recommandé) 🎯
+
+**Double-cliquez sur `scripts/windows/LancerApp.bat`** pour ouvrir l'application de gestion avec interface graphique.
+
+L'application permet de :
+- ✅ Démarrer/arrêter le serveur en un clic
+- ✅ Voir le statut en temps réel
+- ✅ Ouvrir directement l'admin et l'overlay
+- ✅ Vérifier automatiquement l'état du serveur
+
+📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
+
+### Option 2 : Scripts en ligne de commande
+
+**Windows :**
+```powershell
+.\scripts\windows\start.ps1
+```
+
+**Linux/Mac :**
+```bash
+chmod +x scripts/unix/*.sh
+./scripts/unix/start.sh
+```
+
+Puis ouvrez :
+- `http://localhost:3000/overlay` dans OBS (Browser Source)
+- `http://localhost:3000/admin` dans votre navigateur
+
+**Arrêter :**
+```powershell
+.\scripts\windows\stop.ps1    # Windows
+./scripts/unix/stop.sh         # Linux/Mac
+```
+
+📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
+
+### Option 2 : Sans serveur (mode local)
+
+1. Ouvrez `overlay/index.html` dans OBS via une Browser Source (URL file://).
 2. Ouvrez `admin/admin.html` dans votre navigateur pour piloter l'overlay.
-3. Boutons :
-   - "Nouvelle question" charge une question aléatoire (JSON local ou API si disponible)
-   - "Révéler la réponse" met en surbrillance la bonne proposition
-   - "Relancer le timer" repart le compte à rebours avec la durée saisie
 
 Communication overlay/admin : `BroadcastChannel` (même machine / même origine). Un fallback `localStorage` est présent si BroadcastChannel n'est pas disponible.
 

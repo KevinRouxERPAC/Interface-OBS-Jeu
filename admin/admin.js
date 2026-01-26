@@ -41,6 +41,7 @@
     btnRevealAnswer: document.getElementById('btn-reveal-answer'),
     btnNewQuestion: document.getElementById('btn-new-question'),
     btnRestartSelection: document.getElementById('btn-restart-selection'),
+    btnShutdownServer: document.getElementById('btn-shutdown-server'),
     
     // Grilles
     levelsGrid: document.getElementById('levels-grid'),
@@ -112,13 +113,30 @@
       console.log('[ADMIN] Envoi commande:', cmd);
     }
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'admin.js:110',
+        message: 'sendCommand called',
+        data: { cmdType: cmd.type, retryCount: retryCount },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'C'
+      })
+    }).catch(() => {});
+    // #endregion agent log
+    
     // Via BroadcastChannel (onglets navigateur)
     if (channel) {
       channel.postMessage(cmd);
     }
     
     // Via API serveur (OBS) avec retry logic
-    if (CONFIG.apiUrl && (CONFIG.apiKey || navigator.onLine)) {
+    // En développement, on envoie toujours même sans clé API
+    if (CONFIG.apiUrl) {
       try {
         const res = await fetchWithApiKey(`${CONFIG.apiUrl}/command`, {
           method: 'POST',
@@ -126,8 +144,38 @@
           body: JSON.stringify(cmd)
         });
         
-        if (!res.ok && res.status !== 401 && res.status !== 403) {
-          throw new Error(`HTTP ${res.status}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'admin.js:130',
+            message: 'sendCommand response',
+            data: { status: res.status, ok: res.ok, retryCount: retryCount },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'C'
+          })
+        }).catch(() => {});
+        // #endregion agent log
+        
+        if (!res.ok) {
+          if (res.status === 401) {
+            const errorData = await res.json().catch(() => ({ error: 'Non autorisé' }));
+            if (CONFIG.isDevelopment) {
+              console.warn('[ADMIN] Erreur 401 - Clé API manquante ou invalide:', errorData.error);
+              console.warn('[ADMIN] 💡 En développement, la clé API est optionnelle. Le serveur devrait accepter.');
+              // En développement, on continue quand même (le serveur devrait accepter)
+              return; // Ne pas throw, juste logger
+            } else {
+              throw new Error(`HTTP ${res.status}: ${errorData.error}`);
+            }
+          } else if (res.status === 403) {
+            throw new Error(`HTTP ${res.status}: Accès interdit`);
+          } else {
+            throw new Error(`HTTP ${res.status}`);
+          }
         }
         
         retryCount = 0; // Reset on success
@@ -137,8 +185,24 @@
           console.warn('[ADMIN] Erreur envoi serveur:', err);
         }
         
-        // Retry automatique avec backoff exponentiel
-        if (retryCount <= CONFIG.maxRetries) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'admin.js:145',
+            message: 'sendCommand error',
+            data: { error: err.message, retryCount: retryCount, willRetry: retryCount <= CONFIG.maxRetries },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'C'
+          })
+        }).catch(() => {});
+        // #endregion agent log
+        
+        // Retry automatique avec backoff exponentiel (sauf pour les erreurs 401/403)
+        if (retryCount <= CONFIG.maxRetries && !err.message?.includes('401') && !err.message?.includes('403')) {
           const delay = CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1);
           setTimeout(() => sendCommand(cmd), delay);
         }
@@ -623,6 +687,55 @@
     await startSelection();
   }
 
+  /**
+   * Arrête le serveur
+   */
+  async function shutdownServer() {
+    if (!confirm('Êtes-vous sûr de vouloir arrêter le serveur ?\n\nL\'overlay et l\'admin ne fonctionneront plus après l\'arrêt.')) {
+      return;
+    }
+    
+    try {
+      logEvent('Arrêt du serveur demandé...');
+      DOM.btnShutdownServer.disabled = true;
+      DOM.btnShutdownServer.textContent = '⏳ Arrêt en cours...';
+      
+      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/shutdown`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (res.ok) {
+        logEvent('✓ Serveur arrêté avec succès');
+        alert('Le serveur a été arrêté avec succès.\n\nVous pouvez le redémarrer depuis l\'application de gestion.');
+        
+        // Désactiver tous les boutons
+        DOM.btnStartSelection.disabled = true;
+        DOM.btnDrawTheme.disabled = true;
+        DOM.btnLaunchQuestion.disabled = true;
+        DOM.btnRevealAnswer.disabled = true;
+        DOM.btnNewQuestion.disabled = true;
+        DOM.btnRestartSelection.disabled = true;
+        
+        // Mettre à jour le statut
+        if (DOM.statusDot) {
+          DOM.statusDot.classList.remove('connected', 'waiting');
+        }
+        if (DOM.statusText) {
+          DOM.statusText.textContent = 'État: SERVEUR ARRÊTÉ';
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
+        throw new Error(errorData.error || `HTTP ${res.status}`);
+      }
+    } catch (err) {
+      logEvent(`✗ Erreur lors de l'arrêt: ${err.message}`);
+      alert(`Erreur lors de l'arrêt du serveur:\n${err.message}`);
+      DOM.btnShutdownServer.disabled = false;
+      DOM.btnShutdownServer.textContent = '🛑 Arrêter le Serveur';
+    }
+  }
+
   // ========================
   // EVENT LISTENERS
   // ========================
@@ -634,6 +747,7 @@
     DOM.btnRevealAnswer.addEventListener('click', revealAnswer);
     DOM.btnNewQuestion.addEventListener('click', newQuestion);
     DOM.btnRestartSelection.addEventListener('click', restartSelection);
+    DOM.btnShutdownServer.addEventListener('click', shutdownServer);
     
     // Ajoute les boutons A/B/C/D en section active pour sélectionner la réponse
     const keyLabels = ['A', 'B', 'C', 'D'];

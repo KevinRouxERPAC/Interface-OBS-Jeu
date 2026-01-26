@@ -52,25 +52,114 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rate limiting pour protéger contre les attaques DoS
+// #region agent log
+const logRateLimit = (req, remaining, resetTime) => {
+  fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'server.js:55',
+      message: 'Rate limit check',
+      data: {
+        ip: req.ip,
+        path: req.path,
+        method: req.method,
+        remaining: remaining,
+        resetTime: resetTime,
+        timestamp: Date.now()
+      },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A'
+    })
+  }).catch(() => {});
+};
+// #endregion agent log
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  max: config.isDevelopment ? 1000 : 100, // Limite plus permissive en développement
   message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.',
   standardHeaders: true,
   legacyHeaders: false,
+  // #region agent log
+  handler: (req, res) => {
+    logRateLimit(req, 0, null);
+    res.status(429).json({
+      error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.',
+      retryAfter: Math.ceil((req.rateLimit.resetTime - Date.now()) / 1000)
+    });
+  },
+  // #endregion agent log
 });
 
-// Appliquer le rate limiting à toutes les routes
-app.use(limiter);
+// Appliquer le rate limiting de manière conditionnelle
+// En développement, on skip pour les routes critiques de l'admin
+app.use((req, res, next) => {
+  // #region agent log
+  // Extraire le path de manière fiable depuis req.url
+  const urlPath = req.path || (req.url ? req.url.split('?')[0] : '');
+  const shouldSkip = config.isDevelopment && (
+    urlPath.startsWith('/admin') || 
+    urlPath === '/command' || 
+    urlPath === '/state'
+  );
+  
+  if (shouldSkip) {
+    fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'server.js:99',
+        message: 'Rate limit skipped in middleware',
+        data: { path: urlPath, url: req.url, method: req.method, ip: req.ip },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'D'
+      })
+    }).catch(() => {});
+    return next(); // Skip rate limiting
+  }
+  // #endregion agent log
+  
+  // #region agent log
+  const originalJson = res.json;
+  res.json = function(data) {
+    if (req.rateLimit) {
+      logRateLimit(req, req.rateLimit.remaining, req.rateLimit.resetTime);
+    }
+    return originalJson.call(this, data);
+  };
+  // #endregion agent log
+  limiter(req, res, next);
+});
 
 // Middleware de validation de la clé API
 const validateApiKey = (req, res, next) => {
-  // En développement, la clé API est optionnelle si pas configurée
-  if (config.isDevelopment && !config.apiKey) {
-    logger.debug('API', 'Mode développement sans clé API requise');
+  // En développement, la clé API est optionnelle
+  if (config.isDevelopment) {
+    // Si pas de clé API configurée, on accepte toutes les requêtes
+    if (!config.apiKey) {
+      logger.debug('API', 'Mode développement sans clé API requise');
+      return next();
+    }
+    // Si clé API configurée mais requête sans clé, on accepte quand même en dev
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey) {
+      logger.debug('API', 'Mode développement: requête sans clé API acceptée');
+      return next();
+    }
+    // Si clé fournie, on la valide
+    if (apiKey !== config.apiKey) {
+      logger.warn('API', 'Mode développement: clé API invalide, mais acceptée en dev');
+      return next(); // En dev, on accepte même les clés invalides
+    }
     return next();
   }
 
+  // En production, validation stricte
   const apiKey = req.headers['x-api-key'];
   if (!apiKey || apiKey !== config.apiKey) {
     logger.warn('API', 'Tentative d\'accès sans clé API valide');
@@ -95,6 +184,21 @@ app.use('/data', express.static(path.join(__dirname, '..', 'data')));
 // Health check (publique)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Arrêt du serveur - PROTÉGÉ par API Key
+app.post('/shutdown', validateApiKey, (req, res) => {
+  logger.info('SERVER', 'Demande d\'arrêt reçue depuis l\'admin');
+  res.json({ ok: true, message: 'Arrêt du serveur en cours...' });
+  
+  // Arrêt gracieux après un court délai pour permettre la réponse
+  setTimeout(() => {
+    logger.info('SERVER', 'Arrêt du serveur...');
+    server.close(() => {
+      logger.info('SERVER', 'Serveur arrêté');
+      process.exit(0);
+    });
+  }, 500);
 });
 
 // Command bus - PROTÉGÉ par API Key

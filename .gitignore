@@ -41,6 +41,10 @@ desktop.ini
 *.bak
 *.tmp
 
+# PID files
+**/.server.pid
+api/.server.pid
+
 # Build outputs
 dist/
 build/
