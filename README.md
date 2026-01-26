@@ -24,7 +24,20 @@ Interface OBS Jeu/
 
 ## 🚀 Lancer rapidement
 
-### Option 1 : Application graphique (Windows - Recommandé) 🎯
+### Option 1 : Lanceur simple (Windows - Pour utilisateurs finaux) 🎯
+
+**Double-cliquez sur `DEMARRER.bat`** à la racine du projet.
+
+C'est tout ! Le script :
+- ✅ Vérifie automatiquement les prérequis (Node.js)
+- ✅ Installe les dépendances si nécessaire
+- ✅ Configure le projet automatiquement
+- ✅ Démarre le serveur
+- ✅ Ouvre l'interface d'administration dans votre navigateur
+
+📖 **Consultez `GUIDE_UTILISATEUR.txt` pour plus d'informations**
+
+### Option 2 : Application graphique (Windows)
 
 **Double-cliquez sur `scripts/windows/LancerApp.bat`** pour ouvrir l'application de gestion avec interface graphique.
 

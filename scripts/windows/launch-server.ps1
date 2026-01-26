@@ -69,7 +69,8 @@ try {
 
 # Démarrer le serveur en arrière-plan
 Write-Host "[DEMARRAGE] Demarrage du serveur..." -ForegroundColor Green
-$env:NODE_ENV = "production"
+# Mode développement par défaut pour faciliter l'utilisation
+$env:NODE_ENV = "development"
 
 $processInfo = New-Object System.Diagnostics.ProcessStartInfo
 $processInfo.FileName = "node"

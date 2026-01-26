@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════════════╗
+║              QUIZ OVERLAY - GUIDE D'UTILISATION                 ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📋 PRÉREQUIS
+────────────
+• Windows 10 ou supérieur
+• Node.js installé (télécharger depuis https://nodejs.org/)
+• Un navigateur web (Chrome, Firefox, Edge...)
+
+🚀 DÉMARRAGE
+────────────
+1. Double-cliquez sur le fichier "DEMARRER.bat"
+2. Attendez quelques secondes que le serveur démarre
+3. L'interface d'administration s'ouvrira automatiquement dans votre navigateur
+
+✨ UTILISATION
+─────────────
+• L'interface d'administration vous permet de :
+  - Sélectionner la difficulté
+  - Choisir une catégorie
+  - Tirer un thème aléatoire
+  - Lancer des questions
+  - Contrôler l'affichage dans OBS
+
+• Pour utiliser dans OBS :
+  - Ajoutez une source "Navigateur" (Browser Source)
+  - URL : http://localhost:3000/overlay
+  - Largeur : 1920
+  - Hauteur : 200 (ou selon vos besoins)
+  - Fond transparent : Activé
+
+🛑 ARRÊT
+────────
+• Fermez la fenêtre de commande qui s'est ouverte
+• Ou utilisez Ctrl+C dans cette fenêtre
+
+❓ PROBLÈMES COURANTS
+─────────────────────
+• "Node.js n'est pas installé" :
+  → Installez Node.js depuis https://nodejs.org/
+
+• "Le serveur ne démarre pas" :
+  → Vérifiez qu'aucun autre programme n'utilise le port 3000
+  → Redémarrez votre ordinateur si nécessaire
+
+• "L'admin ne s'ouvre pas" :
+  → Ouvrez manuellement : http://localhost:3000/admin
+
+📞 SUPPORT
+──────────
+Pour toute question, contactez le développeur du projet.
