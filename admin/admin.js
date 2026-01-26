@@ -568,14 +568,47 @@
 
   /**
    * Lance une question
+   * Si aucune question n'est disponible pour le thème, relance automatiquement le tirage de thème
    */
-  async function launchQuestion() {
+  async function launchQuestion(maxRetries = 5) {
     logEvent('🚀 Lancement d\'une question...');
     
     const question = await loadRandomQuestion();
     if (!question) {
-      alert('Erreur lors du chargement de la question');
-      return;
+      // Si aucune question trouvée et qu'on a encore des tentatives
+      if (maxRetries > 0 && state.allThemes && state.allThemes.length > 0) {
+        logEvent('⚠️ Aucune question pour ce thème, nouveau tirage...');
+        
+        // Relancer le tirage de thème
+        const randomTheme = state.allThemes[Math.floor(Math.random() * state.allThemes.length)];
+        logEvent(`🎨 Nouveau thème tiré: ${randomTheme.name}`);
+        state.selectedTheme = randomTheme;
+        state.screen = 'QUESTION_WAITING';
+        
+        // Envoie le nouveau thème à l'overlay
+        sendCommand({
+          type: 'SHOW_THEME',
+          theme: randomTheme,
+          level: state.selectedLevel,
+          category: state.selectedCategory
+        });
+        
+        updateUI();
+        
+        // Réessayer avec le nouveau thème (avec une limite pour éviter la boucle infinie)
+        await new Promise(resolve => setTimeout(resolve, 500)); // Petit délai avant de réessayer
+        return launchQuestion(maxRetries - 1);
+      } else {
+        // Plus de tentatives ou plus de thèmes disponibles
+        if (maxRetries === 0) {
+          logEvent('✗ Aucune question disponible après plusieurs tentatives');
+          alert('Aucune question disponible pour cette catégorie après plusieurs tentatives. Veuillez sélectionner une autre catégorie.');
+        } else {
+          logEvent('✗ Aucune question disponible pour ce thème');
+          alert('Aucune question disponible pour ce thème. Veuillez sélectionner une autre catégorie.');
+        }
+        return;
+      }
     }
     
     state.screen = 'QUESTION_ACTIVE';
