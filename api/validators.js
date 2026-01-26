@@ -54,9 +54,60 @@ function normalizeQuestion(q) {
   };
 }
 
+/**
+ * Valide un ID (alphanumérique, tirets, underscores)
+ */
+function validateId(id) {
+  if (!id || typeof id !== 'string') return false;
+  return /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
+/**
+ * Valide un tableau de niveaux
+ */
+function validateLevels(levels) {
+  if (!Array.isArray(levels)) return false;
+  return levels.every(level => 
+    level && 
+    typeof level === 'object' &&
+    (typeof level.id === 'string' || typeof level.id === 'number') &&
+    typeof level.name === 'string'
+  );
+}
+
+/**
+ * Valide un tableau de catégories
+ */
+function validateCategories(categories) {
+  if (!Array.isArray(categories)) return false;
+  return categories.every(cat => 
+    cat && 
+    typeof cat === 'object' &&
+    (typeof cat.id === 'string' || typeof cat.id === 'number') &&
+    typeof cat.name === 'string'
+  );
+}
+
+/**
+ * Valide un tableau de thèmes
+ */
+function validateThemes(themes) {
+  if (!Array.isArray(themes)) return false;
+  return themes.every(theme => 
+    theme && 
+    typeof theme === 'object' &&
+    (typeof theme.id === 'string' || typeof theme.id === 'number') &&
+    typeof theme.name === 'string'
+  );
+}
+
 module.exports = {
   validateQuestion,
   validateCommand,
   validateOverlayState,
-  normalizeQuestion
+  normalizeQuestion,
+  validateId,
+  validateLevels,
+  validateCategories,
+  validateThemes
 };

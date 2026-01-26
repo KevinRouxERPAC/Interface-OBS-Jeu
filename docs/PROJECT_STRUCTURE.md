@@ -22,8 +22,6 @@ Interface OBS Jeu/
 │   ├── index.html                     # Page d'affichage
 │   ├── script.js                      # Logique (améliorée avec API_KEY)
 │   ├── style.css                      # Styles
-│   ├── sync-manager.js                # ⭐ Gestionnaire de synchronisation unifié
-│   ├── script.js.backup               # Sauvegarde
 │   ├── audio/                         # Ressources audio
 │   │   ├── 30secondes.wav
 │   │   ├── correct.wav
