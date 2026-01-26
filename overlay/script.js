@@ -263,6 +263,9 @@
       btn.classList.toggle('highlight', idx === state.selectedAnswerIndex);
     });
     
+    // Arrête le timer et son son
+    clearTimer();
+    
     // Joue le son de sélection
     playSound('select');
     
@@ -285,6 +288,7 @@
     DOM.themeScreen.style.display = 'none';
     DOM.questionScreen.style.display = 'none';
     clearTimer();
+    stopSelectSound();
     if (CONFIG.isDevelopment) {
       console.log('[OVERLAY] Écran d\'attente affiché');
     }
@@ -526,6 +530,9 @@
     
     clearTimer();
     
+    // Arrête le son de sélection s'il est en cours
+    stopSelectSound();
+    
     const correctIndex = Number(state.currentQuestion.bonneReponse);
     const answers = DOM.answers.querySelectorAll('.answer');
     
@@ -569,6 +576,8 @@
       switch (soundType) {
         case 'select':
           soundFile = 'select.wav';
+          // Arrête le son précédent s'il existe
+          stopSelectSound();
           break;
         case 'correct':
           soundFile = 'correct.wav';
@@ -591,6 +600,12 @@
       
       const audio = new Audio(audioUrl);
       audio.volume = volume;
+      
+      // Stocke la référence pour le son de sélection
+      if (soundType === 'select') {
+        state.selectAudio = audio;
+      }
+      
       audio.play().catch(err => {
         if (CONFIG.isDevelopment) {
           console.warn(`[OVERLAY] Son ${soundType} échoué:`, err);
@@ -600,6 +615,17 @@
       if (CONFIG.isDevelopment) {
         console.warn('[OVERLAY] Erreur création audio:', err);
       }
+    }
+  }
+
+  /**
+   * Arrête le son de sélection
+   */
+  function stopSelectSound() {
+    if (state.selectAudio) {
+      state.selectAudio.pause();
+      state.selectAudio.currentTime = 0;
+      state.selectAudio = null;
     }
   }
 

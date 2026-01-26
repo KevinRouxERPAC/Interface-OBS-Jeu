@@ -126,6 +126,18 @@
       box-shadow: 0 12px 30px rgba(66, 232, 196, 0.3);
     }
 
+    .btn-danger {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      color: #ff6b6b;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(244, 67, 54, 0.3);
+      border-color: #ff6b6b;
+      box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
+    }
+
     /* Affichage des données */
     .data-display {
       background: rgba(0, 0, 0, 0.3);
@@ -196,6 +208,13 @@
       <div class="status-indicator">
         <span class="status-dot connected" id="status-dot"></span>
         <span id="status-text">État: EN ATTENTE</span>
+      </div>
+      
+      <!-- Bouton d'arrêt du serveur -->
+      <div style="margin-bottom: 16px;">
+        <button class="btn-danger" id="btn-shutdown-server" style="width: 100%; background: rgba(244, 67, 54, 0.2); border: 1px solid rgba(244, 67, 54, 0.5); color: #ff6b6b;">
+          🛑 Arrêter le Serveur
+        </button>
       </div>
 
       <!-- ===== SECTION: ATTENTE ===== -->
