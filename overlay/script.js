@@ -57,6 +57,7 @@
     answers: document.getElementById('answers'),
     answerButtons: [], // Rempli au démarrage
     selectionInfoPanel: document.getElementById('selection-info-panel'),
+    infoMatiere: document.getElementById('info-matiere'),
     infoLevel: document.getElementById('info-level'),
     infoCategory: document.getElementById('info-category'),
     infoTheme: document.getElementById('info-theme'),
@@ -73,6 +74,7 @@
   // ========================
   let state = {
     screen: 'WAITING', // WAITING, SELECTION, THEME, QUESTION
+    selectedMatiere: null,
     selectedLevel: null,
     selectedCategory: null,
     selectedTheme: null,
@@ -218,6 +220,10 @@
         showWaitingScreen();
         break;
         
+      case 'SHOW_MATIERES_LIST':
+        showMatieresList(cmd.matieres || [], cmd.selectedId);
+        break;
+        
       case 'SHOW_LEVELS_LIST':
         showLevelsList(cmd.levels || [], cmd.selectedId);
         break;
@@ -227,11 +233,11 @@
         break;
         
       case 'SHOW_THEME':
-        showTheme(cmd.theme, cmd.level, cmd.category);
+        showTheme(cmd.theme, cmd.matiere, cmd.level, cmd.category);
         break;
         
       case 'LOAD_QUESTION':
-        loadQuestion(cmd.question, cmd.level, cmd.category, cmd.theme);
+        loadQuestion(cmd.question, cmd.matiere, cmd.level, cmd.category, cmd.theme);
         break;
         
       case 'REVEAL_ANSWER':
@@ -359,6 +365,14 @@
   }
 
   /**
+   * Affiche la liste des matières
+   */
+  function showMatieresList(matieres, selectedId) {
+    showSelectionList('📚 Choisissez la matière', matieres, selectedId);
+    state.selectedMatiere = selectedId;
+  }
+
+  /**
    * Affiche la liste des difficultés
    */
   function showLevelsList(levels, selectedId) {
@@ -377,9 +391,10 @@
   /**
    * Affiche l'écran du thème sélectionné
    */
-  function showTheme(theme, level, category) {
+  function showTheme(theme, matiere, level, category) {
     state.screen = 'THEME';
     state.selectedTheme = theme;
+    state.selectedMatiere = matiere;
     state.selectedLevel = level;
     state.selectedCategory = category;
     
@@ -389,7 +404,7 @@
     DOM.themeScreen.classList.add('screen-transition');
     DOM.questionScreen.style.display = 'none';
     
-    DOM.themeBreadcrumb.textContent = `${level?.name || ''} | ${category?.name || ''}`;
+    DOM.themeBreadcrumb.textContent = `${matiere?.name || ''} | ${level?.name || ''} | ${category?.name || ''}`;
     DOM.themeName.textContent = theme.name || 'Thème';
     DOM.themeDescription.textContent = theme.description || '';
     
@@ -401,9 +416,10 @@
   /**
    * Charge et affiche une question
    */
-  function loadQuestion(question, level, category, theme) {
+  function loadQuestion(question, matiere, level, category, theme) {
     state.screen = 'QUESTION';
     state.currentQuestion = question;
+    state.selectedMatiere = matiere;
     state.selectedLevel = level;
     state.selectedCategory = category;
     state.selectedTheme = theme;
@@ -417,6 +433,7 @@
     DOM.questionScreen.classList.add('screen-transition');
     
     // Affiche les tags de sélection
+    DOM.infoMatiere.textContent = matiere?.name || '-';
     DOM.infoLevel.textContent = level?.name || '-';
     DOM.infoCategory.textContent = category?.name || '-';
     DOM.infoTheme.textContent = theme?.name || '-';

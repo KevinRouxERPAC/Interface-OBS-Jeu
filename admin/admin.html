@@ -39,9 +39,21 @@
         </button>
       </div>
 
+      <!-- ===== SECTION: SÉLECTION MATIÈRE ===== -->
+      <div id="section-matiere-selection" class="screen-transition" style="display: none;">
+        <div class="status-badge">État: SÉLECTION MATIÈRE</div>
+        <p>
+          Choisissez une matière.
+        </p>
+        <div class="buttons-grid" id="matieres-grid"></div>
+      </div>
+
       <!-- ===== SECTION: SÉLECTION DIFFICULTÉ ===== -->
       <div id="section-level-selection" class="screen-transition" style="display: none;">
         <div class="status-badge">État: SÉLECTION DIFFICULTÉ</div>
+        <div class="selection-display">
+          Matière: <strong id="display-matiere">-</strong>
+        </div>
         <p>
           Choisissez un niveau de difficulté.
         </p>
@@ -52,7 +64,7 @@
       <div id="section-category-selection" class="screen-transition" style="display: none;">
         <div class="status-badge">État: SÉLECTION CATÉGORIE</div>
         <div class="selection-display">
-          Difficulté: <strong id="display-level">-</strong>
+          Matière: <strong id="display-matiere-2">-</strong> | Difficulté: <strong id="display-level">-</strong>
         </div>
         <p>
           Choisissez une catégorie.
@@ -64,7 +76,7 @@
       <div id="section-theme-selection" class="screen-transition" style="display: none;">
         <div class="status-badge">État: SÉLECTION THÈME</div>
         <div class="selection-display">
-          Difficulté: <strong id="display-level-2">-</strong> | Catégorie: <strong id="display-category">-</strong>
+          Matière: <strong id="display-matiere-3">-</strong> | Difficulté: <strong id="display-level-2">-</strong> | Catégorie: <strong id="display-category">-</strong>
         </div>
         <p>
           Tirez un thème aléatoire.
@@ -78,6 +90,7 @@
       <div id="section-question-waiting" class="screen-transition" style="display: none;">
         <div class="status-badge">État: ATTENTE QUESTION</div>
         <div class="selection-display">
+          Matière: <strong id="display-matiere-4">-</strong> | 
           Difficulté: <strong id="display-level-3">-</strong> | 
           Catégorie: <strong id="display-category-2">-</strong> | 
           Thème: <strong id="display-theme">-</strong>
@@ -116,6 +129,7 @@
         <h3>État Actuel:</h3>
         <div class="data-display fade-in" id="current-state">
           <strong>Statut:</strong> EN ATTENTE<br>
+          <strong>Matière:</strong> -<br>
           <strong>Niveau:</strong> -<br>
           <strong>Catégorie:</strong> -<br>
           <strong>Thème:</strong> -

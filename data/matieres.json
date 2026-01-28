@@ -1,0 +1,6 @@
+[
+  { "id": "1", "name": "Histoire", "levels": [1, 2, 3, 4] },
+  { "id": "2", "name": "Géographie", "levels": [1, 2] },
+  { "id": "3", "name": "Sciences", "levels": [1, 2] },
+  { "id": "4", "name": "Culture générale", "levels": [1, 2] }
+]

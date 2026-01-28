@@ -1,6 +1,6 @@
 const config = require('./config');
 const Logger = require('./logger');
-const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion, validateId, validateLevels, validateCategories, validateThemes } = require('./validators');
+const { validateQuestion, validateCommand, validateOverlayState, normalizeQuestion, validateId, validateLevels, validateCategories, validateThemes, validateMatieres } = require('./validators');
 const rateLimit = require('express-rate-limit');
 
 // Paramètres Google Sheets (optionnels)
@@ -291,6 +291,43 @@ async function fetchQuestionsFromSheets() {
   }
 }
 
+app.get('/matieres', async (_req, res) => {
+  try {
+    if (sheetId && saEmail && saKey) {
+      const client = buildSheetsClient();
+      const matieresRes = await client.spreadsheets.values.get({ 
+        spreadsheetId: sheetId, 
+        range: matieresRange 
+      });
+      const matieresRows = matieresRes.data.values || [];
+      // Pour Sheets, on doit construire la structure avec les niveaux
+      // On suppose que Sheets contient: id, name, levels (comma-separated)
+      const matieres = matieresRows.map(row => ({
+        id: row[0],
+        name: row[1],
+        levels: (row[2] || '').split(',').map(l => parseInt(l.trim(), 10)).filter(l => !isNaN(l))
+      }));
+      if (!validateMatieres(matieres)) {
+        logger.warn('DATA', 'Matières Sheets invalides, fallback JSON');
+        throw new Error('Format invalide');
+      }
+      return res.json(matieres);
+    }
+    // Fallback JSON local
+    const matieresPath = path.join(__dirname, '..', 'data', 'matieres.json');
+    const matieresJSON = fs.readFileSync(matieresPath, 'utf-8');
+    const matieres = JSON.parse(matieresJSON);
+    if (!validateMatieres(matieres)) {
+      logger.error('DATA', 'Format matieres.json invalide');
+      return res.status(500).json({ error: 'Format de données invalide' });
+    }
+    res.json(matieres);
+  } catch (err) {
+    logger.error('API', `Erreur chargement matières: ${err.message}`);
+    res.status(500).json({ error: 'Impossible de charger les matières' });
+  }
+});
+
 app.get('/levels', async (_req, res) => {
   try {
     if (sheetId && saEmail && saKey) {
@@ -322,8 +359,15 @@ app.get('/levels', async (_req, res) => {
   }
 });
 
-app.get('/categories', async (_req, res) => {
+app.get('/categories', async (req, res) => {
   try {
+    const matiereId = req.query.matiereId;
+    
+    // Valider matiereId si fourni
+    if (matiereId && !validateId(String(matiereId))) {
+      return res.status(400).json({ error: 'ID de matière invalide' });
+    }
+    
     if (sheetId && saEmail && saKey) {
       const client = buildSheetsClient();
       const categoriesRes = await client.spreadsheets.values.get({ 
@@ -331,25 +375,37 @@ app.get('/categories', async (_req, res) => {
         range: categoriesRange 
       });
       const categoriesRows = categoriesRes.data.values || [];
-      const categories = categoriesRows.map(row => ({ 
+      let categories = categoriesRows.map(row => ({ 
         id: row[0], 
         name: row[1], 
         idMatiere: row[4] 
       }));
+      
       if (!validateCategories(categories)) {
         logger.warn('DATA', 'Catégories Sheets invalides, fallback JSON');
         throw new Error('Format invalide');
       }
+      
+      if (matiereId) {
+        categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
+      }
+      
       return res.json(categories);
     }
     // Fallback JSON local
     const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
     const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
-    const categories = JSON.parse(categoriesJSON);
+    let categories = JSON.parse(categoriesJSON);
+    
     if (!validateCategories(categories)) {
       logger.error('DATA', 'Format categories.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
     }
+    
+    if (matiereId) {
+      categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
+    }
+    
     res.json(categories);
   } catch (err) {
     logger.error('API', `Erreur chargement catégories: ${err.message}`);
@@ -413,9 +469,12 @@ app.get('/themes', async (req, res) => {
 
 app.get('/random', async (req, res) => {
   try {
-    const { levelId, categoryId, themeId } = req.query;
+    const { matiereId, levelId, categoryId, themeId } = req.query;
     
     // Valider les IDs si fournis
+    if (matiereId && !validateId(String(matiereId))) {
+      return res.status(400).json({ error: 'ID de matière invalide' });
+    }
     if (levelId && !validateId(String(levelId))) {
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
@@ -443,6 +502,22 @@ app.get('/random', async (req, res) => {
     }
     
     // Filtrer selon les critères
+    // Filtrer par matière via la catégorie
+    if (matiereId) {
+      // Charger les catégories pour filtrer par matière
+      const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
+      const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
+      const categories = JSON.parse(categoriesJSON);
+      const categoryIdsForMatiere = categories
+        .filter(c => String(c.idMatiere) === String(matiereId))
+        .map(c => String(c.id));
+      
+      questions = questions.filter(q => {
+        const qCategoryId = String(q.idCategory || '');
+        return categoryIdsForMatiere.includes(qCategoryId);
+      });
+    }
+    
     if (levelId) {
       questions = questions.filter(q => String(q.idLevel) === String(levelId));
     }
@@ -456,7 +531,7 @@ app.get('/random', async (req, res) => {
     }
     
     if (!questions.length) {
-      logger.warn('API', 'Aucune question trouvée avec critères', { levelId, categoryId, themeId });
+      logger.warn('API', 'Aucune question trouvée avec critères', { matiereId, levelId, categoryId, themeId });
       return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
     }
     
