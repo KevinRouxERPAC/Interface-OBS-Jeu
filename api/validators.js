@@ -101,6 +101,21 @@ function validateThemes(themes) {
   );
 }
 
+/**
+ * Valide un tableau de matières
+ */
+function validateMatieres(matieres) {
+  if (!Array.isArray(matieres)) return false;
+  return matieres.every(matiere => 
+    matiere && 
+    typeof matiere === 'object' &&
+    (typeof matiere.id === 'string' || typeof matiere.id === 'number') &&
+    typeof matiere.name === 'string' &&
+    Array.isArray(matiere.levels) &&
+    matiere.levels.every(l => typeof l === 'number' && l >= 1 && l <= 4)
+  );
+}
+
 module.exports = {
   validateQuestion,
   validateCommand,
@@ -109,5 +124,6 @@ module.exports = {
   validateId,
   validateLevels,
   validateCategories,
-  validateThemes
+  validateThemes,
+  validateMatieres
 };

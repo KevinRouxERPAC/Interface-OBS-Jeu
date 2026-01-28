@@ -31,6 +31,7 @@
     
     // Sections
     waitingSection: document.getElementById('section-waiting'),
+    matiereSelectionSection: document.getElementById('section-matiere-selection'),
     levelSelectionSection: document.getElementById('section-level-selection'),
     categorySelectionSection: document.getElementById('section-category-selection'),
     themeSelectionSection: document.getElementById('section-theme-selection'),
@@ -47,10 +48,15 @@
     btnShutdownServer: document.getElementById('btn-shutdown-server'),
     
     // Grilles
+    matieresGrid: document.getElementById('matieres-grid'),
     levelsGrid: document.getElementById('levels-grid'),
     categoriesGrid: document.getElementById('categories-grid'),
     
     // Affichages
+    displayMatiere: document.getElementById('display-matiere'),
+    displayMatiere2: document.getElementById('display-matiere-2'),
+    displayMatiere3: document.getElementById('display-matiere-3'),
+    displayMatiere4: document.getElementById('display-matiere-4'),
     displayLevel: document.getElementById('display-level'),
     displayLevel2: document.getElementById('display-level-2'),
     displayLevel3: document.getElementById('display-level-3'),
@@ -69,11 +75,13 @@
   // STATE
   // ========================
   let state = {
-    screen: 'WAITING', // WAITING, LEVEL_SELECTION, CATEGORY_SELECTION, THEME_SELECTION, QUESTION_WAITING, QUESTION_ACTIVE
+    screen: 'WAITING', // WAITING, MATIERE_SELECTION, LEVEL_SELECTION, CATEGORY_SELECTION, THEME_SELECTION, QUESTION_WAITING, QUESTION_ACTIVE
+    selectedMatiere: null,
     selectedLevel: null,
     selectedCategory: null,
     selectedTheme: null,
     currentQuestion: null,
+    allMatieres: [],
     allLevels: [],
     allCategories: [],
     allThemes: []
@@ -217,6 +225,7 @@
     // Masque toutes les sections et retire les classes d'animation
     const allSections = [
       DOM.waitingSection,
+      DOM.matiereSelectionSection,
       DOM.levelSelectionSection,
       DOM.categorySelectionSection,
       DOM.themeSelectionSection,
@@ -237,37 +246,47 @@
       case 'WAITING':
         activeSection = DOM.waitingSection;
         DOM.statusText.textContent = 'État: EN ATTENTE';
-        updateCurrentState('EN ATTENTE', '-', '-', '-');
+        updateCurrentState('EN ATTENTE', '-', '-', '-', '-');
+        break;
+        
+      case 'MATIERE_SELECTION':
+        activeSection = DOM.matiereSelectionSection;
+        DOM.statusText.textContent = 'État: SÉLECTION MATIÈRE';
+        updateCurrentState('SÉLECTION MATIÈRE', '-', '-', '-', '-');
         break;
         
       case 'LEVEL_SELECTION':
         activeSection = DOM.levelSelectionSection;
+        DOM.displayMatiere.textContent = state.selectedMatiere?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION DIFFICULTÉ';
-        updateCurrentState('SÉLECTION DIFFICULTÉ', '-', '-', '-');
+        updateCurrentState('SÉLECTION DIFFICULTÉ', state.selectedMatiere?.name, '-', '-', '-');
         break;
         
       case 'CATEGORY_SELECTION':
         activeSection = DOM.categorySelectionSection;
+        DOM.displayMatiere2.textContent = state.selectedMatiere?.name || '-';
         DOM.displayLevel.textContent = state.selectedLevel?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION CATÉGORIE';
-        updateCurrentState('SÉLECTION CATÉGORIE', state.selectedLevel?.name, '-', '-');
+        updateCurrentState('SÉLECTION CATÉGORIE', state.selectedMatiere?.name, state.selectedLevel?.name, '-', '-');
         break;
         
       case 'THEME_SELECTION':
         activeSection = DOM.themeSelectionSection;
+        DOM.displayMatiere3.textContent = state.selectedMatiere?.name || '-';
         DOM.displayLevel2.textContent = state.selectedLevel?.name || '-';
         DOM.displayCategory.textContent = state.selectedCategory?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION THÈME';
-        updateCurrentState('SÉLECTION THÈME', state.selectedLevel?.name, state.selectedCategory?.name, '-');
+        updateCurrentState('SÉLECTION THÈME', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, '-');
         break;
         
       case 'QUESTION_WAITING':
         activeSection = DOM.questionWaitingSection;
+        DOM.displayMatiere4.textContent = state.selectedMatiere?.name || '-';
         DOM.displayLevel3.textContent = state.selectedLevel?.name || '-';
         DOM.displayCategory2.textContent = state.selectedCategory?.name || '-';
         DOM.displayTheme.textContent = state.selectedTheme?.name || '-';
         DOM.statusText.textContent = 'État: ATTENTE QUESTION';
-        updateCurrentState('ATTENTE QUESTION', state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name);
+        updateCurrentState('ATTENTE QUESTION', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name);
         break;
         
       case 'QUESTION_ACTIVE':
@@ -298,10 +317,11 @@
   /**
    * Met à jour l'affichage de l'état actuel
    */
-  function updateCurrentState(status, level, category, theme) {
+  function updateCurrentState(status, matiere, level, category, theme) {
     DOM.currentState.classList.add('fade-in');
     DOM.currentState.innerHTML = `
       <strong>Statut:</strong> ${status}<br>
+      <strong>Matière:</strong> ${matiere}<br>
       <strong>Niveau:</strong> ${level}<br>
       <strong>Catégorie:</strong> ${category}<br>
       <strong>Thème:</strong> ${theme}
@@ -339,6 +359,30 @@
   // ========================
 
   /**
+   * Charge les matières depuis le serveur
+   */
+  async function loadMatieres() {
+    try {
+      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/matieres`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const matieres = await res.json();
+      if (!Array.isArray(matieres)) {
+        throw new Error('Format de données invalide');
+      }
+      state.allMatieres = matieres;
+      renderMatiereButtons();
+      logEvent('✓ Matières chargées: ' + matieres.length);
+    } catch (err) {
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] Erreur chargement matières:', err);
+      }
+      logEvent('✗ Erreur chargement matières: ' + err.message);
+    }
+  }
+
+  /**
    * Charge les difficultés depuis le serveur
    */
   async function loadLevels() {
@@ -363,11 +407,15 @@
   }
 
   /**
-   * Charge les catégories depuis le serveur
+   * Charge les catégories depuis le serveur (filtrées par matière si sélectionnée)
    */
   async function loadCategories() {
     try {
-      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/categories`);
+      let url = `${CONFIG.apiUrl}/categories`;
+      if (state.selectedMatiere?.id) {
+        url += `?matiereId=${state.selectedMatiere.id}`;
+      }
+      const res = await fetchWithApiKey(url);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -418,6 +466,7 @@
   async function loadRandomQuestion() {
     try {
       const params = new URLSearchParams();
+      if (state.selectedMatiere?.id) params.append('matiereId', state.selectedMatiere.id);
       if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
       if (state.selectedCategory?.id) params.append('categoryId', state.selectedCategory.id);
       if (state.selectedTheme?.id) params.append('themeId', state.selectedTheme.id);
@@ -451,11 +500,35 @@
   // ========================
 
   /**
-   * Crée les boutons de difficulté
+   * Crée les boutons de matière
+   */
+  function renderMatiereButtons() {
+    DOM.matieresGrid.innerHTML = '';
+    state.allMatieres.forEach((matiere, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = matiere.name;
+      btn.classList.add('slide-up');
+      btn.style.animationDelay = `${idx * 0.05}s`;
+      btn.addEventListener('click', () => selectMatiere(matiere));
+      DOM.matieresGrid.appendChild(btn);
+    });
+  }
+
+  /**
+   * Crée les boutons de difficulté (filtrés selon la matière)
    */
   function renderLevelButtons() {
     DOM.levelsGrid.innerHTML = '';
-    state.allLevels.forEach((level, idx) => {
+    
+    // Filtrer les niveaux selon la matière sélectionnée
+    let availableLevels = state.allLevels;
+    if (state.selectedMatiere && state.selectedMatiere.levels) {
+      availableLevels = state.allLevels.filter(level => 
+        state.selectedMatiere.levels.includes(parseInt(level.id, 10))
+      );
+    }
+    
+    availableLevels.forEach((level, idx) => {
       const btn = document.createElement('button');
       btn.textContent = level.name;
       btn.classList.add('slide-up');
@@ -489,7 +562,8 @@
    */
   async function startSelection() {
     logEvent('🎬 Nouvelle sélection lancée');
-    state.screen = 'LEVEL_SELECTION';
+    state.screen = 'MATIERE_SELECTION';
+    state.selectedMatiere = null;
     state.selectedLevel = null;
     state.selectedCategory = null;
     state.selectedTheme = null;
@@ -497,16 +571,52 @@
     
     updateUI();
     
-    // Charge les niveaux
-    await loadLevels();
+    // Charge les matières
+    await loadMatieres();
     
-    // Envoie la commande à l'overlay + affiche immédiatement les difficultés
+    // Envoie la commande à l'overlay
     sendCommand({ type: 'START_SELECTION' });
     sendCommand({
-      type: 'SHOW_LEVELS_LIST',
-      levels: state.allLevels,
+      type: 'SHOW_MATIERES_LIST',
+      matieres: state.allMatieres,
       selectedId: null
     });
+  }
+
+  /**
+   * Sélectionne une matière
+   */
+  async function selectMatiere(matiere) {
+    logEvent(`📚 Matière sélectionnée: ${matiere.name}`);
+    state.selectedMatiere = matiere;
+    state.selectedLevel = null;
+    state.selectedCategory = null;
+    state.selectedTheme = null;
+    state.screen = 'LEVEL_SELECTION';
+    
+    // Charge les niveaux (seront filtrés dans renderLevelButtons)
+    await loadLevels();
+    
+    // Envoie la sélection à l'overlay
+    sendCommand({
+      type: 'SHOW_MATIERES_LIST',
+      matieres: state.allMatieres,
+      selectedId: matiere.id
+    });
+    
+    // Attend avant d'afficher les niveaux côté overlay
+    setTimeout(() => {
+      updateUI();
+      // Filtrer les niveaux disponibles pour cette matière
+      const availableLevels = state.allLevels.filter(level => 
+        matiere.levels.includes(parseInt(level.id, 10))
+      );
+      sendCommand({
+        type: 'SHOW_LEVELS_LIST',
+        levels: availableLevels,
+        selectedId: null
+      });
+    }, CONFIG.selectionDisplayDelay);
   }
 
   /**
@@ -519,13 +629,18 @@
     state.selectedTheme = null;
     state.screen = 'CATEGORY_SELECTION';
     
-    // Charge les catégories
+    // Charge les catégories (filtrées par matière)
     await loadCategories();
+    
+    // Filtrer les niveaux disponibles pour cette matière
+    const availableLevels = state.allLevels.filter(l => 
+      state.selectedMatiere.levels.includes(parseInt(l.id, 10))
+    );
     
     // Envoie la sélection à l'overlay
     sendCommand({
       type: 'SHOW_LEVELS_LIST',
-      levels: state.allLevels,
+      levels: availableLevels,
       selectedId: level.id
     });
     
@@ -583,6 +698,7 @@
     sendCommand({
       type: 'SHOW_THEME',
       theme: randomTheme,
+      matiere: state.selectedMatiere,
       level: state.selectedLevel,
       category: state.selectedCategory
     });
@@ -614,6 +730,7 @@
         sendCommand({
           type: 'SHOW_THEME',
           theme: randomTheme,
+          matiere: state.selectedMatiere,
           level: state.selectedLevel,
           category: state.selectedCategory
         });
@@ -642,6 +759,7 @@
     sendCommand({
       type: 'LOAD_QUESTION',
       question: question,
+      matiere: state.selectedMatiere,
       level: state.selectedLevel,
       category: state.selectedCategory,
       theme: state.selectedTheme

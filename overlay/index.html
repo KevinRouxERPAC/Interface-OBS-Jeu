@@ -38,10 +38,10 @@
       <!-- ===== ÉCRAN DE SÉLECTION ===== -->
       <div id="selection-screen" class="screen-transition" style="display: none;">
         <!-- Titre de sélection -->
-        <h2 class="selection-title text-glow-blue fade-in" id="selection-title">🎯 Choisissez la difficulté</h2>
+        <h2 class="selection-title text-glow-blue fade-in" id="selection-title">🎯 Choisissez</h2>
         <div class="selection-info text-muted" id="selection-info"></div>
         
-        <!-- Liste des difficultés/catégories (format réponses) -->
+        <!-- Liste des matières/niveaux/catégories (format réponses) -->
         <div class="answers" id="selection-buttons"></div>
       </div>
       
@@ -63,8 +63,9 @@
       
       <!-- ===== ÉCRAN DE QUESTION ===== -->
       <div id="question-screen" class="screen-transition" style="display: none;">
-        <!-- Tags de sélection (difficulté | catégorie | thème) -->
+        <!-- Tags de sélection (matière | difficulté | catégorie | thème) -->
         <div class="selection-info-panel flex-center" id="selection-info-panel">
+          <div class="selection-tag card glow-blue">📚 <span id="info-matiere">-</span></div>
           <div class="selection-tag card glow-blue">🎯 <span id="info-level">-</span></div>
           <div class="selection-tag card glow-purple">📂 <span id="info-category">-</span></div>
           <div class="selection-tag card glow-gold">🎨 <span id="info-theme">-</span></div>
