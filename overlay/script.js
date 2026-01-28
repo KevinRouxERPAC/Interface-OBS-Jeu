@@ -265,9 +265,14 @@
     if (index == null) return;
     state.selectedAnswerIndex = Number(index);
     
-    // Surligne la réponse
+    // Surligne la réponse avec animation pulse
     DOM.answers.querySelectorAll('.answer').forEach((btn, idx) => {
       btn.classList.toggle('highlight', idx === state.selectedAnswerIndex);
+      if (idx === state.selectedAnswerIndex) {
+        btn.classList.add('glow-purple');
+      } else {
+        btn.classList.remove('glow-purple');
+      }
     });
     
     // Arrête le timer et son son
@@ -291,6 +296,7 @@
   function showWaitingScreen() {
     state.screen = 'WAITING';
     DOM.waitingScreen.style.display = 'block';
+    DOM.waitingScreen.classList.add('screen-transition');
     DOM.selectionScreen.style.display = 'none';
     DOM.themeScreen.style.display = 'none';
     DOM.questionScreen.style.display = 'none';
@@ -308,6 +314,7 @@
     state.screen = 'SELECTION';
     DOM.waitingScreen.style.display = 'none';
     DOM.selectionScreen.style.display = 'block';
+    DOM.selectionScreen.classList.add('screen-transition');
     DOM.themeScreen.style.display = 'none';
     DOM.questionScreen.style.display = 'none';
     
@@ -317,9 +324,8 @@
     
     if (!Array.isArray(items) || !items.length) {
       const wrapper = document.createElement('div');
-      wrapper.className = 'answer';
-      wrapper.innerHTML = '<span class="text">Aucun élément disponible</span>';
-      wrapper.style.color = '#ff6b6b';
+      wrapper.className = 'answer card';
+      wrapper.innerHTML = '<span class="text text-error">Aucun élément disponible</span>';
       DOM.selectionButtons.appendChild(wrapper);
       return;
     }
@@ -329,7 +335,8 @@
     
     items.forEach((item, idx) => {
       const wrapper = document.createElement('div');
-      wrapper.className = 'answer selection-item';
+      wrapper.className = 'answer card selection-item slide-up';
+      wrapper.style.animationDelay = `${idx * 0.1}s`;
       
       const key = document.createElement('div');
       key.className = 'key';
@@ -342,7 +349,7 @@
       wrapper.appendChild(key);
       wrapper.appendChild(text);
       
-      // Surligna l'élément sélectionné
+      // Surligne l'élément sélectionné
       if (selectedId && item.id === selectedId) {
         wrapper.classList.add('highlight');
       }
@@ -379,6 +386,7 @@
     DOM.waitingScreen.style.display = 'none';
     DOM.selectionScreen.style.display = 'none';
     DOM.themeScreen.style.display = 'block';
+    DOM.themeScreen.classList.add('screen-transition');
     DOM.questionScreen.style.display = 'none';
     
     DOM.themeBreadcrumb.textContent = `${level?.name || ''} | ${category?.name || ''}`;
@@ -406,6 +414,7 @@
     DOM.selectionScreen.style.display = 'none';
     DOM.themeScreen.style.display = 'none';
     DOM.questionScreen.style.display = 'block';
+    DOM.questionScreen.classList.add('screen-transition');
     
     // Affiche les tags de sélection
     DOM.infoLevel.textContent = level?.name || '-';
@@ -414,13 +423,16 @@
     
     // Affiche la question
     DOM.question.textContent = question.question || 'Question vide';
+    DOM.question.classList.add('fade-in');
     
     // Affiche les propositions
     const keyLabels = ['A', 'B', 'C', 'D'];
     DOM.answers.querySelectorAll('.answer').forEach((btn, idx) => {
       btn.querySelector('.key').textContent = keyLabels[idx];
       btn.querySelector('.text').textContent = question.propositions?.[idx] || '';
-      btn.classList.remove('correct', 'wrong', 'revealed', 'highlight', 'pulse');
+      btn.classList.remove('correct', 'wrong', 'revealed', 'highlight', 'pulse', 'highlight-correct');
+      btn.classList.add('slide-up');
+      btn.style.animationDelay = `${idx * 0.1}s`;
     });
     
     // Réinitialise l'explication
@@ -547,8 +559,8 @@
       btn.classList.add('revealed');
       
       if (idx === correctIndex) {
-        // La bonne réponse est toujours verte
-        btn.classList.add('correct', 'pulse');
+        // La bonne réponse est toujours verte avec animation highlight
+        btn.classList.add('correct', 'highlight-correct');
       } else if (idx === state.selectedAnswerIndex) {
         // La réponse sélectionnée par l'admin : rouge si fausse
         btn.classList.add('wrong');

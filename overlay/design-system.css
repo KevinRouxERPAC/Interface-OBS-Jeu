@@ -1,0 +1,494 @@
+/**
+ * DESIGN SYSTEM - QUIZ TV GAME SHOW
+ * Style moderne inspiré des jeux télévisés (Qui veut gagner des millions, The Chase, etc.)
+ */
+
+/* ============================================
+   VARIABLES CSS - COULEURS & THÈME
+   ============================================ */
+:root {
+  /* Couleurs primaires néon */
+  --color-primary-neon-blue: #00d4ff;
+  --color-primary-neon-purple: #a855f7;
+  --color-primary-gold: #ffd700;
+  
+  /* Couleurs secondaires */
+  --color-secondary-dark-blue: #0a0e27;
+  --color-secondary-deep-black: #000000;
+  --color-secondary-anthracite: #1a1f3a;
+  
+  /* Couleurs d'accent */
+  --color-accent-cyan: #00ffff;
+  --color-accent-magenta: #ff00ff;
+  
+  /* Couleurs fonctionnelles */
+  --color-success: #00ff88;
+  --color-error: #ff3366;
+  --color-warning: #ffaa00;
+  --color-info: #00d4ff;
+  
+  /* Couleurs de texte */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b8c5d6;
+  --color-text-muted: #6b7a8f;
+  
+  /* Ombres portées profondes */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);
+  
+  /* Effets lumineux (glow) */
+  --glow-blue: 0 0 20px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0, 212, 255, 0.4);
+  --glow-purple: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.4);
+  --glow-gold: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.4);
+  --glow-success: 0 0 20px rgba(0, 255, 136, 0.6), 0 0 40px rgba(0, 255, 136, 0.4);
+  --glow-error: 0 0 20px rgba(255, 51, 102, 0.6), 0 0 40px rgba(255, 51, 102, 0.4);
+  
+  /* Rayons de bordure */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  
+  /* Espacements */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  
+  /* Bordures */
+  --border-width: 2px;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color-bright: rgba(0, 212, 255, 0.3);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  
+  /* Typographie */
+  --font-family-primary: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  --font-weight-normal: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Effets de fond */
+  --bg-overlay: rgba(10, 14, 39, 0.85);
+  --bg-card: rgba(26, 31, 58, 0.8);
+  --bg-card-hover: rgba(26, 31, 58, 0.95);
+  --bg-gradient-primary: linear-gradient(135deg, var(--color-primary-neon-blue), var(--color-primary-neon-purple));
+  --bg-gradient-gold: linear-gradient(135deg, var(--color-primary-gold), #ffaa00);
+  --bg-gradient-success: linear-gradient(135deg, var(--color-success), #00cc77);
+  
+  /* Backdrop blur */
+  --backdrop-blur: blur(20px) saturate(180%);
+}
+
+/* ============================================
+   TYPOGRAPHIE MODERNE
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap');
+
+body {
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   CLASSES UTILITAIRES - LAYOUT
+   ============================================ */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-center {
+  display: grid;
+  place-items: center;
+}
+
+/* ============================================
+   CLASSES UTILITAIRES - CARTES
+   ============================================ */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: var(--backdrop-blur);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-bright);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.card-glow {
+  box-shadow: var(--glow-blue), var(--shadow-lg);
+}
+
+/* ============================================
+   CLASSES UTILITAIRES - BOUTONS
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: var(--bg-gradient-primary);
+  color: var(--color-secondary-deep-black);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--glow-blue), var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-gold {
+  background: var(--bg-gradient-gold);
+  color: var(--color-secondary-deep-black);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-gold:hover:not(:disabled) {
+  box-shadow: var(--glow-gold), var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background: var(--bg-gradient-success);
+  color: var(--color-secondary-deep-black);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-success:hover:not(:disabled) {
+  box-shadow: var(--glow-success), var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: rgba(255, 51, 102, 0.2);
+  border-color: rgba(255, 51, 102, 0.5);
+  color: var(--color-error);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(255, 51, 102, 0.3);
+  border-color: var(--color-error);
+  box-shadow: var(--glow-error), var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ============================================
+   CLASSES UTILITAIRES - EFFETS LUMINEUX
+   ============================================ */
+.glow {
+  position: relative;
+}
+
+.glow::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  padding: 4px;
+  background: var(--bg-gradient-primary);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+  pointer-events: none;
+}
+
+.glow:hover::before {
+  opacity: 0.6;
+}
+
+.glow-blue {
+  box-shadow: var(--glow-blue);
+}
+
+.glow-purple {
+  box-shadow: var(--glow-purple);
+}
+
+.glow-gold {
+  box-shadow: var(--glow-gold);
+}
+
+.glow-success {
+  box-shadow: var(--glow-success);
+}
+
+.glow-error {
+  box-shadow: var(--glow-error);
+}
+
+/* ============================================
+   ANIMATIONS CSS
+   ============================================ */
+
+/* Fade In */
+.fade-in {
+  animation: fadeIn var(--transition-slow) ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide Up */
+.slide-up {
+  animation: slideUp var(--transition-base) ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse - Glow pulsé */
+.pulse {
+  animation: pulse var(--transition-slow) ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: var(--glow-blue);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: var(--glow-blue), 0 0 60px rgba(0, 212, 255, 0.6);
+  }
+}
+
+/* Pulse Success */
+.pulse-success {
+  animation: pulseSuccess var(--transition-slow) ease-in-out infinite;
+}
+
+@keyframes pulseSuccess {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: var(--glow-success);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: var(--glow-success), 0 0 60px rgba(0, 255, 136, 0.6);
+  }
+}
+
+/* Shake */
+.shake {
+  animation: shake 400ms ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-8px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(8px);
+  }
+}
+
+/* Pop In */
+.pop-in {
+  animation: popIn 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Highlight - Réponse correcte */
+.highlight-correct {
+  animation: highlightCorrect 600ms ease-in-out;
+}
+
+@keyframes highlightCorrect {
+  0% {
+    transform: scale(1);
+    box-shadow: var(--glow-success);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: var(--glow-success), 0 0 80px rgba(0, 255, 136, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: var(--glow-success);
+  }
+}
+
+/* Transition entre écrans */
+.screen-transition {
+  animation: screenTransition 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes screenTransition {
+  0% {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Timer pulse */
+.timer-pulse {
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Glow pulsé pour éléments importants */
+.glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: var(--glow-blue);
+  }
+  50% {
+    box-shadow: var(--glow-blue), 0 0 60px rgba(0, 212, 255, 0.8);
+  }
+}
+
+/* ============================================
+   UTILITAIRES D'AFFICHAGE
+   ============================================ */
+.text-glow {
+  text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+}
+
+.text-glow-blue {
+  color: var(--color-primary-neon-blue);
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.6), 0 0 30px rgba(0, 212, 255, 0.4);
+}
+
+.text-glow-purple {
+  color: var(--color-primary-neon-purple);
+  text-shadow: 0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(168, 85, 247, 0.4);
+}
+
+.text-glow-gold {
+  color: var(--color-primary-gold);
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 215, 0, 0.4);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  :root {
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+    --spacing-2xl: 32px;
+  }
+  
+  .card {
+    padding: var(--spacing-md);
+  }
+  
+  .btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 12px;
+  }
+}

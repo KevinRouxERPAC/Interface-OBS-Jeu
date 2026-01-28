@@ -214,37 +214,47 @@
    * Affiche la section appropriée basée sur l'état
    */
   function updateUI() {
-    // Masque toutes les sections
-    DOM.waitingSection.style.display = 'none';
-    DOM.levelSelectionSection.style.display = 'none';
-    DOM.categorySelectionSection.style.display = 'none';
-    DOM.themeSelectionSection.style.display = 'none';
-    DOM.questionWaitingSection.style.display = 'none';
-    DOM.questionActiveSection.style.display = 'none';
+    // Masque toutes les sections et retire les classes d'animation
+    const allSections = [
+      DOM.waitingSection,
+      DOM.levelSelectionSection,
+      DOM.categorySelectionSection,
+      DOM.themeSelectionSection,
+      DOM.questionWaitingSection,
+      DOM.questionActiveSection
+    ];
     
-    // Affiche la bonne section
+    allSections.forEach(section => {
+      if (section) {
+        section.style.display = 'none';
+        section.classList.remove('screen-transition', 'fade-in');
+      }
+    });
+    
+    // Affiche la bonne section avec animation
+    let activeSection = null;
     switch (state.screen) {
       case 'WAITING':
-        DOM.waitingSection.style.display = 'block';
+        activeSection = DOM.waitingSection;
         DOM.statusText.textContent = 'État: EN ATTENTE';
         updateCurrentState('EN ATTENTE', '-', '-', '-');
         break;
         
       case 'LEVEL_SELECTION':
-        DOM.levelSelectionSection.style.display = 'block';
+        activeSection = DOM.levelSelectionSection;
         DOM.statusText.textContent = 'État: SÉLECTION DIFFICULTÉ';
         updateCurrentState('SÉLECTION DIFFICULTÉ', '-', '-', '-');
         break;
         
       case 'CATEGORY_SELECTION':
-        DOM.categorySelectionSection.style.display = 'block';
+        activeSection = DOM.categorySelectionSection;
         DOM.displayLevel.textContent = state.selectedLevel?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION CATÉGORIE';
         updateCurrentState('SÉLECTION CATÉGORIE', state.selectedLevel?.name, '-', '-');
         break;
         
       case 'THEME_SELECTION':
-        DOM.themeSelectionSection.style.display = 'block';
+        activeSection = DOM.themeSelectionSection;
         DOM.displayLevel2.textContent = state.selectedLevel?.name || '-';
         DOM.displayCategory.textContent = state.selectedCategory?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION THÈME';
@@ -252,7 +262,7 @@
         break;
         
       case 'QUESTION_WAITING':
-        DOM.questionWaitingSection.style.display = 'block';
+        activeSection = DOM.questionWaitingSection;
         DOM.displayLevel3.textContent = state.selectedLevel?.name || '-';
         DOM.displayCategory2.textContent = state.selectedCategory?.name || '-';
         DOM.displayTheme.textContent = state.selectedTheme?.name || '-';
@@ -261,7 +271,7 @@
         break;
         
       case 'QUESTION_ACTIVE':
-        DOM.questionActiveSection.style.display = 'block';
+        activeSection = DOM.questionActiveSection;
         const correctIdx = state.currentQuestion?.bonneReponse;
         const keyLabelsUI = ['A', 'B', 'C', 'D'];
         const correctAnswer = keyLabelsUI[correctIdx] || '?';
@@ -275,12 +285,21 @@
         }
         break;
     }
+    
+    // Affiche la section active avec animation
+    if (activeSection) {
+      activeSection.style.display = 'block';
+      activeSection.classList.add('screen-transition');
+      // Force le reflow pour déclencher l'animation
+      void activeSection.offsetWidth;
+    }
   }
 
   /**
    * Met à jour l'affichage de l'état actuel
    */
   function updateCurrentState(status, level, category, theme) {
+    DOM.currentState.classList.add('fade-in');
     DOM.currentState.innerHTML = `
       <strong>Statut:</strong> ${status}<br>
       <strong>Niveau:</strong> ${level}<br>
@@ -293,6 +312,7 @@
    * Met à jour l'affichage de la question actuelle
    */
   function updateCurrentQuestion(question) {
+    DOM.currentQuestion.classList.add('fade-in');
     if (!question) {
       DOM.currentQuestion.innerHTML = '<em>Aucune question chargée</em>';
       return;
@@ -435,9 +455,11 @@
    */
   function renderLevelButtons() {
     DOM.levelsGrid.innerHTML = '';
-    state.allLevels.forEach(level => {
+    state.allLevels.forEach((level, idx) => {
       const btn = document.createElement('button');
       btn.textContent = level.name;
+      btn.classList.add('slide-up');
+      btn.style.animationDelay = `${idx * 0.05}s`;
       btn.addEventListener('click', () => selectLevel(level));
       DOM.levelsGrid.appendChild(btn);
     });
@@ -448,9 +470,11 @@
    */
   function renderCategoryButtons() {
     DOM.categoriesGrid.innerHTML = '';
-    state.allCategories.forEach(category => {
+    state.allCategories.forEach((category, idx) => {
       const btn = document.createElement('button');
       btn.textContent = category.name;
+      btn.classList.add('slide-up');
+      btn.style.animationDelay = `${idx * 0.05}s`;
       btn.addEventListener('click', () => selectCategory(category));
       DOM.categoriesGrid.appendChild(btn);
     });
@@ -569,6 +593,7 @@
   /**
    * Lance une question
    * Si aucune question n'est disponible pour le thème, relance automatiquement le tirage de thème
+   * Si aucune question n'est disponible après plusieurs tentatives, relance automatiquement la sélection complète
    */
   async function launchQuestion(maxRetries = 5) {
     logEvent('🚀 Lancement d\'une question...');
@@ -599,14 +624,14 @@
         await new Promise(resolve => setTimeout(resolve, 500)); // Petit délai avant de réessayer
         return launchQuestion(maxRetries - 1);
       } else {
-        // Plus de tentatives ou plus de thèmes disponibles
-        if (maxRetries === 0) {
-          logEvent('✗ Aucune question disponible après plusieurs tentatives');
-          alert('Aucune question disponible pour cette catégorie après plusieurs tentatives. Veuillez sélectionner une autre catégorie.');
-        } else {
-          logEvent('✗ Aucune question disponible pour ce thème');
-          alert('Aucune question disponible pour ce thème. Veuillez sélectionner une autre catégorie.');
-        }
+        // Plus de tentatives ou plus de thèmes disponibles - relance automatiquement la sélection
+        logEvent('⚠️ Aucune question disponible après plusieurs tentatives - relance automatique de la sélection');
+        
+        // Petit délai avant de relancer pour laisser le temps de voir le message
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Relance automatiquement la sélection complète
+        await startSelection();
         return;
       }
     }
@@ -742,16 +767,19 @@
     const buttonContainer = document.createElement('div');
     buttonContainer.id = 'answer-selection-buttons';
     buttonContainer.style.display = 'none';
-    buttonContainer.style.marginTop = '12px';
+    buttonContainer.style.marginTop = 'var(--spacing-md)';
     buttonContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
-    buttonContainer.style.gap = '8px';
+    buttonContainer.style.gap = 'var(--spacing-md)';
     buttonContainer.style.display = 'grid';
     
     keyLabels.forEach((label, idx) => {
       const btn = document.createElement('button');
       btn.textContent = label;
-      btn.style.padding = '10px';
-      btn.style.minWidth = '40px';
+      btn.classList.add('slide-up');
+      btn.style.animationDelay = `${idx * 0.1}s`;
+      btn.style.padding = 'var(--spacing-md)';
+      btn.style.minWidth = '50px';
+      btn.style.fontWeight = 'var(--font-weight-bold)';
       btn.addEventListener('click', () => selectAnswerButton(idx));
       buttonContainer.appendChild(btn);
     });
