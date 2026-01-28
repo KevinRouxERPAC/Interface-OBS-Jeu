@@ -45,6 +45,7 @@
     btnRevealAnswer: document.getElementById('btn-reveal-answer'),
     btnNewQuestion: document.getElementById('btn-new-question'),
     btnRestartSelection: document.getElementById('btn-restart-selection'),
+    btnRestartSelectionAlways: document.getElementById('btn-restart-selection-always'),
     btnShutdownServer: document.getElementById('btn-shutdown-server'),
     
     // Grilles
@@ -65,9 +66,15 @@
     displayTheme: document.getElementById('display-theme'),
     displayCorrectAnswer: document.getElementById('display-correct-answer'),
     
-    // Informations
+    // Informations (blocs streamer)
     currentState: document.getElementById('current-state'),
+    adminInfoTags: document.getElementById('admin-info-tags'),
+    adminThemeDesc: document.getElementById('admin-theme-desc'),
     currentQuestion: document.getElementById('current-question'),
+    adminPropositions: document.getElementById('admin-propositions'),
+    adminBlockPropositions: document.getElementById('admin-block-propositions'),
+    adminExplication: document.getElementById('admin-explication'),
+    adminBlockExplication: document.getElementById('admin-block-explication'),
     eventLog: document.getElementById('event-log')
   };
 
@@ -81,6 +88,7 @@
     selectedCategory: null,
     selectedTheme: null,
     currentQuestion: null,
+    answerRevealed: false,
     allMatieres: [],
     allLevels: [],
     allCategories: [],
@@ -246,20 +254,23 @@
       case 'WAITING':
         activeSection = DOM.waitingSection;
         DOM.statusText.textContent = 'État: EN ATTENTE';
-        updateCurrentState('EN ATTENTE', '-', '-', '-', '-');
+        updateCurrentState('EN ATTENTE', '-', '-', '-', '-', '');
+        updateCurrentQuestion(null);
         break;
         
       case 'MATIERE_SELECTION':
         activeSection = DOM.matiereSelectionSection;
         DOM.statusText.textContent = 'État: SÉLECTION MATIÈRE';
-        updateCurrentState('SÉLECTION MATIÈRE', '-', '-', '-', '-');
+        updateCurrentState('SÉLECTION MATIÈRE', '-', '-', '-', '-', '');
+        updateCurrentQuestion(null);
         break;
         
       case 'LEVEL_SELECTION':
         activeSection = DOM.levelSelectionSection;
         DOM.displayMatiere.textContent = state.selectedMatiere?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION DIFFICULTÉ';
-        updateCurrentState('SÉLECTION DIFFICULTÉ', state.selectedMatiere?.name, '-', '-', '-');
+        updateCurrentState('SÉLECTION DIFFICULTÉ', state.selectedMatiere?.name, '-', '-', '-', '');
+        updateCurrentQuestion(null);
         break;
         
       case 'CATEGORY_SELECTION':
@@ -267,7 +278,8 @@
         DOM.displayMatiere2.textContent = state.selectedMatiere?.name || '-';
         DOM.displayLevel.textContent = state.selectedLevel?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION CATÉGORIE';
-        updateCurrentState('SÉLECTION CATÉGORIE', state.selectedMatiere?.name, state.selectedLevel?.name, '-', '-');
+        updateCurrentState('SÉLECTION CATÉGORIE', state.selectedMatiere?.name, state.selectedLevel?.name, '-', '-', '');
+        updateCurrentQuestion(null);
         break;
         
       case 'THEME_SELECTION':
@@ -276,7 +288,8 @@
         DOM.displayLevel2.textContent = state.selectedLevel?.name || '-';
         DOM.displayCategory.textContent = state.selectedCategory?.name || '-';
         DOM.statusText.textContent = 'État: SÉLECTION THÈME';
-        updateCurrentState('SÉLECTION THÈME', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, '-');
+        updateCurrentState('SÉLECTION THÈME', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, '-', '');
+        updateCurrentQuestion(null);
         break;
         
       case 'QUESTION_WAITING':
@@ -286,7 +299,8 @@
         DOM.displayCategory2.textContent = state.selectedCategory?.name || '-';
         DOM.displayTheme.textContent = state.selectedTheme?.name || '-';
         DOM.statusText.textContent = 'État: ATTENTE QUESTION';
-        updateCurrentState('ATTENTE QUESTION', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name);
+        updateCurrentState('ATTENTE QUESTION', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '');
+        updateCurrentQuestion(null);
         break;
         
       case 'QUESTION_ACTIVE':
@@ -296,8 +310,8 @@
         const correctAnswer = keyLabelsUI[correctIdx] || '?';
         DOM.displayCorrectAnswer.textContent = `${correctAnswer}`;
         DOM.statusText.textContent = 'État: QUESTION EN COURS';
+        updateCurrentState('QUESTION EN COURS', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '');
         updateCurrentQuestion(state.currentQuestion);
-        // Affiche les boutons de sélection de réponse
         const answerBtns = document.getElementById('answer-selection-buttons');
         if (answerBtns) {
           answerBtns.style.display = 'grid';
@@ -315,43 +329,89 @@
   }
 
   /**
-   * Met à jour l'affichage de l'état actuel
+   * Met à jour le bloc Infos générales (tags + description du thème)
    */
-  function updateCurrentState(status, matiere, level, category, theme) {
-    DOM.currentState.classList.add('fade-in');
-    DOM.currentState.innerHTML = `
-      <strong>Statut:</strong> ${status}<br>
-      <strong>Matière:</strong> ${matiere}<br>
-      <strong>Niveau:</strong> ${level}<br>
-      <strong>Catégorie:</strong> ${category}<br>
-      <strong>Thème:</strong> ${theme}
-    `;
+  function updateCurrentState(status, matiere, level, category, theme, themeDescription) {
+    const tags = DOM.adminInfoTags;
+    const desc = DOM.adminThemeDesc;
+    if (!tags || !desc) return;
+    
+    const items = [
+      { label: 'Statut', value: status },
+      { label: 'Matière', value: matiere },
+      { label: 'Difficulté', value: level },
+      { label: 'Catégorie', value: category },
+      { label: 'Thème', value: theme }
+    ];
+    tags.innerHTML = items.map(({ label, value }) =>
+      `<span class="admin-tag">${label}: <strong>${value || '-'}</strong></span>`
+    ).join('');
+    
+    if (themeDescription && String(themeDescription).trim()) {
+      desc.textContent = themeDescription;
+      desc.style.display = '';
+    } else {
+      desc.textContent = '';
+      desc.style.display = 'none';
+    }
+    DOM.currentState?.classList.add('fade-in');
   }
 
   /**
-   * Met à jour l'affichage de la question actuelle
+   * Met à jour les blocs Question, Propositions et Explication
    */
   function updateCurrentQuestion(question) {
-    DOM.currentQuestion.classList.add('fade-in');
+    const qEl = DOM.currentQuestion;
+    const propCont = DOM.adminPropositions;
+    const propBlock = DOM.adminBlockPropositions;
+    const explCont = DOM.adminExplication;
+    const explBlock = DOM.adminBlockExplication;
+    if (!qEl) return;
+    
+    qEl.classList.add('fade-in');
+    
     if (!question) {
-      DOM.currentQuestion.innerHTML = '<em>Aucune question chargée</em>';
+      qEl.innerHTML = '<em class="text-muted">Aucune question chargée</em>';
+      qEl.classList.add('text-muted');
+      if (propBlock) propBlock.style.display = 'none';
+      if (explBlock) explBlock.style.display = 'none';
       return;
     }
     
     const keyLabels = ['A', 'B', 'C', 'D'];
     const correctIdx = question.bonneReponse;
-    const correctAnswer = keyLabels[correctIdx] || '?';
+    const revealed = state.answerRevealed;
     
-    DOM.currentQuestion.innerHTML = `
-      <strong>Q:</strong> ${question.question}<br>
-      <strong>Réponses:</strong><br>
-      ${question.propositions.map((p, i) => {
-        const mark = i === correctIdx ? '✓ ' : '';
-        return `&nbsp;&nbsp;${keyLabels[i]}) ${mark}${p}`;
-      }).join('<br>')}<br>
-      <strong>Explication:</strong> ${question.explication || '-'}<br>
-      <strong>Thème:</strong> ${question.theme || '-'}
-    `;
+    qEl.textContent = question.question || '';
+    qEl.classList.remove('text-muted');
+    
+    if (propCont && propBlock) {
+      propBlock.style.display = '';
+      propCont.innerHTML = (question.propositions || []).map((p, i) => {
+        const isCorrect = i === correctIdx;
+        const kl = keyLabels[i] || '?';
+        let cls = 'admin-proposition-card';
+        if (revealed && isCorrect) cls += ' admin-proposition-correct';
+        return `<div class="${cls}" data-index="${i}"><span class="admin-proposition-label">${kl}</span><span class="admin-proposition-text">${escapeHtml(p)}</span></div>`;
+      }).join('');
+    }
+    
+    if (explCont && explBlock) {
+      if (revealed && (question.explication || '').trim()) {
+        explBlock.style.display = '';
+        explCont.textContent = question.explication;
+        explCont.classList.add('fade-in');
+      } else {
+        explBlock.style.display = 'none';
+        explCont.textContent = '';
+      }
+    }
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
   }
 
   // ========================
@@ -371,6 +431,20 @@
       if (!Array.isArray(matieres)) {
         throw new Error('Format de données invalide');
       }
+      
+      // Log pour déboguer
+      if (CONFIG.isDevelopment) {
+        console.log('[ADMIN] Matières reçues:', matieres);
+        matieres.forEach(m => {
+          console.log(`[ADMIN] Matière ${m.name}:`, {
+            id: m.id,
+            levels: m.levels,
+            levelsType: typeof m.levels,
+            isArray: Array.isArray(m.levels)
+          });
+        });
+      }
+      
       state.allMatieres = matieres;
       renderMatiereButtons();
       logEvent('✓ Matières chargées: ' + matieres.length);
@@ -518,15 +592,55 @@
    * Crée les boutons de difficulté (filtrés selon la matière)
    */
   function renderLevelButtons() {
+    if (!DOM.levelsGrid) {
+      if (CONFIG.isDevelopment) {
+        console.error('[ADMIN] DOM.levelsGrid n\'existe pas');
+      }
+      logEvent('✗ Erreur: grille de niveaux introuvable');
+      return;
+    }
+    
     DOM.levelsGrid.innerHTML = '';
     
     // Filtrer les niveaux selon la matière sélectionnée
     let availableLevels = state.allLevels;
-    if (state.selectedMatiere && state.selectedMatiere.levels) {
-      availableLevels = state.allLevels.filter(level => 
-        state.selectedMatiere.levels.includes(parseInt(level.id, 10))
-      );
+    if (state.selectedMatiere && state.selectedMatiere.levels && Array.isArray(state.selectedMatiere.levels)) {
+      availableLevels = state.allLevels.filter(level => {
+        const levelId = parseInt(level.id, 10);
+        const isAvailable = state.selectedMatiere.levels.includes(levelId);
+        if (CONFIG.isDevelopment) {
+          console.log(`[ADMIN] Niveau ${levelId} (${level.name}) disponible pour ${state.selectedMatiere.name}?`, isAvailable);
+        }
+        return isAvailable;
+      });
+      
+      if (CONFIG.isDevelopment) {
+        console.log(`[ADMIN] Matière: ${state.selectedMatiere.name}, Niveaux disponibles:`, state.selectedMatiere.levels);
+        console.log(`[ADMIN] Tous les niveaux:`, state.allLevels.map(l => ({ id: l.id, name: l.name })));
+        console.log(`[ADMIN] Niveaux filtrés:`, availableLevels.map(l => ({ id: l.id, name: l.name })));
+      }
+    } else {
+      if (CONFIG.isDevelopment) {
+        console.warn('[ADMIN] Pas de matière sélectionnée ou pas de niveaux définis');
+      }
     }
+    
+    if (availableLevels.length === 0) {
+      logEvent('⚠️ Aucun niveau disponible pour cette matière');
+      if (CONFIG.isDevelopment) {
+        console.warn('[ADMIN] Aucun niveau disponible pour la matière:', state.selectedMatiere);
+      }
+      // Afficher un message dans la grille
+      const msg = document.createElement('div');
+      msg.textContent = 'Aucun niveau disponible';
+      msg.style.padding = 'var(--spacing-md)';
+      msg.style.textAlign = 'center';
+      msg.style.color = 'var(--color-text-muted)';
+      DOM.levelsGrid.appendChild(msg);
+      return;
+    }
+    
+    logEvent(`✓ ${availableLevels.length} niveau(x) disponible(s)`);
     
     availableLevels.forEach((level, idx) => {
       const btn = document.createElement('button');
@@ -568,6 +682,7 @@
     state.selectedCategory = null;
     state.selectedTheme = null;
     state.currentQuestion = null;
+    state.answerRevealed = false;
     
     updateUI();
     
@@ -594,8 +709,17 @@
     state.selectedTheme = null;
     state.screen = 'LEVEL_SELECTION';
     
+    // Met à jour l'UI immédiatement pour afficher la section de sélection de niveau
+    updateUI();
+    
+    // Petit délai pour s'assurer que la section est visible dans le DOM
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     // Charge les niveaux (seront filtrés dans renderLevelButtons)
     await loadLevels();
+    
+    // Force le re-render des boutons après le chargement
+    renderLevelButtons();
     
     // Envoie la sélection à l'overlay
     sendCommand({
@@ -606,7 +730,6 @@
     
     // Attend avant d'afficher les niveaux côté overlay
     setTimeout(() => {
-      updateUI();
       // Filtrer les niveaux disponibles pour cette matière
       const availableLevels = state.allLevels.filter(level => 
         matiere.levels.includes(parseInt(level.id, 10))
@@ -754,6 +877,7 @@
     }
     
     state.screen = 'QUESTION_ACTIVE';
+    state.answerRevealed = false;
     
     // Envoie la question à l'overlay
     sendCommand({
@@ -799,6 +923,8 @@
     }
     
     logEvent('✅ Réponse révélée');
+    state.answerRevealed = true;
+    updateCurrentQuestion(state.currentQuestion);
     sendCommand({ type: 'REVEAL_ANSWER' });
   }
 
@@ -847,6 +973,7 @@
         DOM.btnRevealAnswer.disabled = true;
         DOM.btnNewQuestion.disabled = true;
         DOM.btnRestartSelection.disabled = true;
+        if (DOM.btnRestartSelectionAlways) DOM.btnRestartSelectionAlways.disabled = true;
         
         // Mettre à jour le statut
         if (DOM.statusDot) {
@@ -878,6 +1005,9 @@
     DOM.btnRevealAnswer.addEventListener('click', revealAnswer);
     DOM.btnNewQuestion.addEventListener('click', newQuestion);
     DOM.btnRestartSelection.addEventListener('click', restartSelection);
+    if (DOM.btnRestartSelectionAlways) {
+      DOM.btnRestartSelectionAlways.addEventListener('click', restartSelection);
+    }
     DOM.btnShutdownServer.addEventListener('click', shutdownServer);
     
     // Ajoute les boutons A/B/C/D en section active pour sélectionner la réponse
