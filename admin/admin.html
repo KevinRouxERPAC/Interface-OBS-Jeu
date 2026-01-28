@@ -21,9 +21,12 @@
         <span id="status-text">État: EN ATTENTE</span>
       </div>
       
-      <!-- Bouton d'arrêt du serveur -->
-      <div style="margin-bottom: var(--spacing-md);">
-        <button class="btn-danger" id="btn-shutdown-server" style="width: 100%;">
+      <!-- Boutons permanents -->
+      <div class="admin-buttons-persistent">
+        <button class="btn-primary" id="btn-restart-selection-always" type="button">
+          🎬 Relancer une sélection
+        </button>
+        <button class="btn-danger" id="btn-shutdown-server" type="button">
           🛑 Arrêter le Serveur
         </button>
       </div>
@@ -121,33 +124,42 @@
     </div>
 
     <!-- ==================== RIGHT PANEL: INFORMATIONS ==================== -->
-    <div class="panel">
+    <div class="panel panel-informations">
       <div class="panel-title">📊 Informations</div>
 
-      <!-- État actuel -->
-      <div style="margin-bottom: var(--spacing-xl);">
-        <h3>État Actuel:</h3>
-        <div class="data-display fade-in" id="current-state">
-          <strong>Statut:</strong> EN ATTENTE<br>
-          <strong>Matière:</strong> -<br>
-          <strong>Niveau:</strong> -<br>
-          <strong>Catégorie:</strong> -<br>
-          <strong>Thème:</strong> -
+      <!-- Bloc Infos générales -->
+      <div class="admin-block admin-block-infos">
+        <h3 class="admin-block-title">Infos générales</h3>
+        <div class="admin-infos-inner" id="current-state">
+          <div class="admin-info-tags" id="admin-info-tags"></div>
+          <p class="admin-theme-desc" id="admin-theme-desc"></p>
         </div>
       </div>
 
-      <!-- Question actuelle -->
-      <div style="margin-bottom: var(--spacing-xl);">
-        <h3>Question Actuelle:</h3>
-        <div class="data-display fade-in" id="current-question">
-          <em>Aucune question chargée</em>
+      <!-- Bloc Question -->
+      <div class="admin-block admin-block-question">
+        <h3 class="admin-block-title">Question</h3>
+        <div class="admin-question-inner fade-in" id="current-question">
+          <em class="text-muted">Aucune question chargée</em>
         </div>
       </div>
 
-      <!-- Journal d'événements -->
-      <div>
-        <h3>Journal:</h3>
-        <div class="data-display fade-in" id="event-log" style="max-height: 300px;">
+      <!-- Bloc Propositions -->
+      <div class="admin-block admin-block-propositions" id="admin-block-propositions" style="display: none;">
+        <h3 class="admin-block-title">Propositions</h3>
+        <div class="admin-propositions-inner" id="admin-propositions"></div>
+      </div>
+
+      <!-- Bloc Explication (visible après révélation) -->
+      <div class="admin-block admin-block-explication" id="admin-block-explication" style="display: none;">
+        <h3 class="admin-block-title">Explication</h3>
+        <div class="admin-explication-inner" id="admin-explication"></div>
+      </div>
+
+      <!-- Journal -->
+      <div class="admin-block admin-block-journal">
+        <h3 class="admin-block-title">Journal</h3>
+        <div class="data-display fade-in" id="event-log">
           <em class="text-muted">En attente d'événements...</em>
         </div>
       </div>

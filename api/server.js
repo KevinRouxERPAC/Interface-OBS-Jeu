@@ -294,29 +294,49 @@ async function fetchQuestionsFromSheets() {
 app.get('/matieres', async (_req, res) => {
   try {
     if (sheetId && saEmail && saKey) {
-      const client = buildSheetsClient();
-      const matieresRes = await client.spreadsheets.values.get({ 
-        spreadsheetId: sheetId, 
-        range: matieresRange 
-      });
-      const matieresRows = matieresRes.data.values || [];
-      // Pour Sheets, on doit construire la structure avec les niveaux
-      // On suppose que Sheets contient: id, name, levels (comma-separated)
-      const matieres = matieresRows.map(row => ({
-        id: row[0],
-        name: row[1],
-        levels: (row[2] || '').split(',').map(l => parseInt(l.trim(), 10)).filter(l => !isNaN(l))
-      }));
-      if (!validateMatieres(matieres)) {
-        logger.warn('DATA', 'Matières Sheets invalides, fallback JSON');
-        throw new Error('Format invalide');
+      try {
+        const client = buildSheetsClient();
+        const matieresRes = await client.spreadsheets.values.get({ 
+          spreadsheetId: sheetId, 
+          range: matieresRange 
+        });
+        const matieresRows = matieresRes.data.values || [];
+        // Pour Sheets, on doit construire la structure avec les niveaux
+        // On suppose que Sheets contient: id, name, levels (comma-separated)
+        const matieres = matieresRows.map(row => ({
+          id: row[0],
+          name: row[1],
+          levels: (row[2] || '').split(',').map(l => parseInt(l.trim(), 10)).filter(l => !isNaN(l))
+        }));
+        
+        // Vérifier que toutes les matières ont des niveaux valides
+        const hasInvalidMatieres = matieres.some(m => !m.levels || m.levels.length === 0);
+        if (hasInvalidMatieres) {
+          logger.warn('DATA', 'Matières Sheets avec niveaux vides, fallback JSON');
+          throw new Error('Niveaux manquants dans Sheets');
+        }
+        
+        if (!validateMatieres(matieres)) {
+          logger.warn('DATA', 'Matières Sheets invalides, fallback JSON');
+          throw new Error('Format invalide');
+        }
+        logger.info('API', `Matières chargées depuis Google Sheets: ${matieres.length}`);
+        return res.json(matieres);
+      } catch (sheetsErr) {
+        logger.warn('API', `Erreur Google Sheets, fallback JSON: ${sheetsErr.message}`);
+        // Continue vers le fallback JSON
       }
-      return res.json(matieres);
     }
     // Fallback JSON local
     const matieresPath = path.join(__dirname, '..', 'data', 'matieres.json');
     const matieresJSON = fs.readFileSync(matieresPath, 'utf-8');
     const matieres = JSON.parse(matieresJSON);
+    
+    logger.info('API', `Matières chargées depuis JSON local: ${matieres.length}`);
+    if (matieres.length > 0) {
+      logger.info('API', `Première matière: ${JSON.stringify(matieres[0])}`);
+    }
+    
     if (!validateMatieres(matieres)) {
       logger.error('DATA', 'Format matieres.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
@@ -331,18 +351,22 @@ app.get('/matieres', async (_req, res) => {
 app.get('/levels', async (_req, res) => {
   try {
     if (sheetId && saEmail && saKey) {
-      const client = buildSheetsClient();
-      const levelsRes = await client.spreadsheets.values.get({ 
-        spreadsheetId: sheetId, 
-        range: levelsRange 
-      });
-      const levelsRows = levelsRes.data.values || [];
-      const levels = levelsRows.map(row => ({ id: row[0], name: row[1] }));
-      if (!validateLevels(levels)) {
-        logger.warn('DATA', 'Niveaux Sheets invalides, fallback JSON');
-        throw new Error('Format invalide');
+      try {
+        const client = buildSheetsClient();
+        const levelsRes = await client.spreadsheets.values.get({ 
+          spreadsheetId: sheetId, 
+          range: levelsRange 
+        });
+        const levelsRows = levelsRes.data.values || [];
+        const levels = levelsRows.map(row => ({ id: row[0], name: row[1] }));
+        if (!validateLevels(levels)) {
+          logger.warn('DATA', 'Niveaux Sheets invalides, fallback JSON');
+          throw new Error('Format invalide');
+        }
+        return res.json(levels);
+      } catch (sheetsErr) {
+        logger.warn('API', `Erreur Google Sheets niveaux, fallback JSON: ${sheetsErr.message}`);
       }
-      return res.json(levels);
     }
     // Fallback JSON local
     const levelsPath = path.join(__dirname, '..', 'data', 'levels.json');
@@ -369,28 +393,32 @@ app.get('/categories', async (req, res) => {
     }
     
     if (sheetId && saEmail && saKey) {
-      const client = buildSheetsClient();
-      const categoriesRes = await client.spreadsheets.values.get({ 
-        spreadsheetId: sheetId, 
-        range: categoriesRange 
-      });
-      const categoriesRows = categoriesRes.data.values || [];
-      let categories = categoriesRows.map(row => ({ 
-        id: row[0], 
-        name: row[1], 
-        idMatiere: row[4] 
-      }));
-      
-      if (!validateCategories(categories)) {
-        logger.warn('DATA', 'Catégories Sheets invalides, fallback JSON');
-        throw new Error('Format invalide');
+      try {
+        const client = buildSheetsClient();
+        const categoriesRes = await client.spreadsheets.values.get({ 
+          spreadsheetId: sheetId, 
+          range: categoriesRange 
+        });
+        const categoriesRows = categoriesRes.data.values || [];
+        let categories = categoriesRows.map(row => ({ 
+          id: row[0], 
+          name: row[1], 
+          idMatiere: row[4] 
+        }));
+        
+        if (!validateCategories(categories)) {
+          logger.warn('DATA', 'Catégories Sheets invalides, fallback JSON');
+          throw new Error('Format invalide');
+        }
+        
+        if (matiereId) {
+          categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
+        }
+        
+        return res.json(categories);
+      } catch (sheetsErr) {
+        logger.warn('API', `Erreur Google Sheets catégories, fallback JSON: ${sheetsErr.message}`);
       }
-      
-      if (matiereId) {
-        categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
-      }
-      
-      return res.json(categories);
     }
     // Fallback JSON local
     const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
@@ -423,28 +451,32 @@ app.get('/themes', async (req, res) => {
     }
     
     if (sheetId && saEmail && saKey) {
-      const client = buildSheetsClient();
-      const themesRes = await client.spreadsheets.values.get({ 
-        spreadsheetId: sheetId, 
-        range: themesRange 
-      });
-      const themesRows = themesRes.data.values || [];
-      let themes = themesRows.map(row => ({ 
-        id: row[0], 
-        idCategory: row[1], 
-        name: row[2] 
-      }));
-      
-      if (!validateThemes(themes)) {
-        logger.warn('DATA', 'Thèmes Sheets invalides, fallback JSON');
-        throw new Error('Format invalide');
+      try {
+        const client = buildSheetsClient();
+        const themesRes = await client.spreadsheets.values.get({ 
+          spreadsheetId: sheetId, 
+          range: themesRange 
+        });
+        const themesRows = themesRes.data.values || [];
+        let themes = themesRows.map(row => ({ 
+          id: row[0], 
+          idCategory: row[1], 
+          name: row[2] 
+        }));
+        
+        if (!validateThemes(themes)) {
+          logger.warn('DATA', 'Thèmes Sheets invalides, fallback JSON');
+          throw new Error('Format invalide');
+        }
+        
+        if (categoryId) {
+          themes = themes.filter(t => String(t.idCategory) === String(categoryId));
+        }
+        
+        return res.json(themes);
+      } catch (sheetsErr) {
+        logger.warn('API', `Erreur Google Sheets thèmes, fallback JSON: ${sheetsErr.message}`);
       }
-      
-      if (categoryId) {
-        themes = themes.filter(t => String(t.idCategory) === String(categoryId));
-      }
-      
-      return res.json(themes);
     }
     // Fallback JSON local
     const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
