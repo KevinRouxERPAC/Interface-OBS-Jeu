@@ -431,6 +431,7 @@
     const keyLabels = ['A', 'B', 'C', 'D'];
     const correctIdx = question.bonneReponse;
     const revealed = state.answerRevealed;
+    const selectedIdx = (question && question.selectedByAdmin != null) ? Number(question.selectedByAdmin) : null;
     
     qEl.textContent = question.question || '';
     qEl.classList.remove('text-muted');
@@ -441,7 +442,9 @@
         const isCorrect = i === correctIdx;
         const kl = keyLabels[i] || '?';
         let cls = 'admin-proposition-card';
+        if (selectedIdx !== null && i === selectedIdx) cls += ' admin-proposition-selected';
         if (revealed && isCorrect) cls += ' admin-proposition-correct';
+        if (revealed && selectedIdx !== null && selectedIdx !== correctIdx && i === selectedIdx) cls += ' admin-proposition-wrong';
         return `<div class="${cls}" data-index="${i}"><span class="admin-proposition-label">${kl}</span><span class="admin-proposition-text">${escapeHtml(p)}</span></div>`;
       }).join('');
     }

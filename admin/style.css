@@ -468,8 +468,28 @@ button:disabled {
   box-shadow: var(--glow-success), var(--shadow-md);
 }
 
+.admin-proposition-card.admin-proposition-wrong {
+  background: rgba(255, 51, 102, 0.12);
+  border-color: rgba(255, 51, 102, 0.55);
+  box-shadow: var(--glow-error), var(--shadow-md);
+}
+
+.admin-proposition-card.admin-proposition-selected:not(.admin-proposition-correct):not(.admin-proposition-wrong) {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: var(--glow-purple), var(--shadow-md);
+}
+
 .admin-proposition-card.admin-proposition-correct:hover {
   box-shadow: var(--glow-success), 0 0 30px rgba(0, 255, 136, 0.4);
+}
+
+.admin-proposition-card.admin-proposition-wrong:hover {
+  box-shadow: var(--glow-error), 0 0 30px rgba(255, 51, 102, 0.45);
+}
+
+.admin-proposition-card.admin-proposition-selected:not(.admin-proposition-correct):not(.admin-proposition-wrong):hover {
+  box-shadow: var(--glow-purple), 0 0 30px rgba(168, 85, 247, 0.45);
 }
 
 .admin-proposition-label {
@@ -489,6 +509,16 @@ button:disabled {
 .admin-proposition-correct .admin-proposition-label {
   background: rgba(0, 255, 136, 0.3);
   color: var(--color-success);
+}
+
+.admin-proposition-wrong .admin-proposition-label {
+  background: rgba(255, 51, 102, 0.3);
+  color: var(--color-error);
+}
+
+.admin-proposition-selected:not(.admin-proposition-correct):not(.admin-proposition-wrong) .admin-proposition-label {
+  background: rgba(168, 85, 247, 0.3);
+  color: var(--color-primary-neon-purple);
 }
 
 .admin-proposition-text {
