@@ -573,12 +573,15 @@
     const answers = DOM.answers.querySelectorAll('.answer');
     
     answers.forEach((btn, idx) => {
+      // Important: on retire la surbrillance violette de sélection, sinon elle peut masquer
+      // le vert/rouge (le CSS .answer.highlight est déclaré après .answer.correct/.wrong).
+      btn.classList.remove('highlight', 'glow-purple', 'pulse', 'highlight-correct', 'wrong', 'correct');
       btn.classList.add('revealed');
       
       if (idx === correctIndex) {
         // La bonne réponse est toujours verte avec animation highlight
-        btn.classList.add('correct', 'highlight-correct');
-      } else if (idx === state.selectedAnswerIndex) {
+        btn.classList.add('correct', 'pulse');
+      } else if (idx === state.selectedAnswerIndex && state.selectedAnswerIndex !== correctIndex) {
         // La réponse sélectionnée par l'admin : rouge si fausse
         btn.classList.add('wrong');
       }
