@@ -1,6 +1,10 @@
 [
-  { "id": "1", "name": "Géographie", "idMatiere": "1" },
-  { "id": "2", "name": "Sciences", "idMatiere": "2" },
-  { "id": "3", "name": "Histoire", "idMatiere": "3" },
-  { "id": "4", "name": "Arts", "idMatiere": "4" }
+  {
+    "id": "1",
+    "name": "Antiquité",
+    "startDate": "-3000",
+    "endDate": "476",
+    "idMatiere": "1"
+  }
 ]
+

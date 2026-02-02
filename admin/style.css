@@ -124,6 +124,56 @@ body {
 }
 
 /* ============================================
+   OPTIONS (SELECT)
+   ============================================ */
+.admin-options {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+  border: var(--border-width) solid var(--border-color);
+}
+
+.admin-options-title {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary-neon-blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.admin-option-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.admin-option-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-option-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-semibold);
+  outline: none;
+}
+
+.admin-option-select:focus {
+  border-color: var(--border-color-bright);
+  box-shadow: var(--glow-blue), var(--shadow-sm);
+}
+
+/* ============================================
    SÉLECTIONS AFFICHÉES
    ============================================ */
 .selection-display {

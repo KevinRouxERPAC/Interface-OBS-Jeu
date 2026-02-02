@@ -84,7 +84,9 @@ function validateCategories(categories) {
     cat && 
     typeof cat === 'object' &&
     (typeof cat.id === 'string' || typeof cat.id === 'number') &&
-    typeof cat.name === 'string'
+    typeof cat.name === 'string' &&
+    // Dans le MLD: Category -> Matiere (FK)
+    (typeof cat.idMatiere === 'string' || typeof cat.idMatiere === 'number')
   );
 }
 
@@ -97,7 +99,10 @@ function validateThemes(themes) {
     theme && 
     typeof theme === 'object' &&
     (typeof theme.id === 'string' || typeof theme.id === 'number') &&
-    typeof theme.name === 'string'
+    typeof theme.name === 'string' &&
+    // Dans le MLD: Theme -> Category (FK) et Theme -> Level (FK)
+    (typeof theme.idCategory === 'string' || typeof theme.idCategory === 'number') &&
+    (typeof theme.idLevel === 'string' || typeof theme.idLevel === 'number')
   );
 }
 
@@ -111,8 +116,12 @@ function validateMatieres(matieres) {
     typeof matiere === 'object' &&
     (typeof matiere.id === 'string' || typeof matiere.id === 'number') &&
     typeof matiere.name === 'string' &&
-    Array.isArray(matiere.levels) &&
-    matiere.levels.every(l => typeof l === 'number' && l >= 1 && l <= 4)
+    // Dans le MLD: Matiere = (ID, Nom). Certains exports historiques ajoutent un champ dérivé "levels".
+    // On le tolère si présent, sans en faire une exigence.
+    (
+      matiere.levels === undefined ||
+      (Array.isArray(matiere.levels) && matiere.levels.every(l => typeof l === 'number' || typeof l === 'string'))
+    )
   );
 }
 
