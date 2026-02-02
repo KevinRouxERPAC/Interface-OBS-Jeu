@@ -232,8 +232,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    - Partagez le document avec l'email du compte de service en "Lecteur"
 
 3. **Structure attendue du Google Sheets (5 onglets) :**
-   - **Questions** : ID, IDTheme, IDLevel, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question
-   - **Theme** : ID, IDCategory, Name, Description
+   - **Questions** : ID, IDTheme, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question
+   - **Theme** : ID, IDCategory, IDLevel, Name, Description
    - **Category** : ID, Name, Start_Date, End_Date, IDMatiere
    - **Level** : ID, Libel
    - **Matiere** : ID, Nom
@@ -245,7 +245,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    GOOGLE_SERVICE_ACCOUNT_KEY=<clé privée avec \n échappés>
    ```
 
-L'API tentera d'abord de lire le Sheet, sinon elle retombera sur `data/questions.json`.
+Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet** (pas de fallback silencieux). Sans configuration Sheets, l’API utilise `data/questions.json`.
 
 ---
 
@@ -306,8 +306,8 @@ Tous les endpoints ci-dessous nécessitent l'en-tête `X-API-Key` en production 
 **Questions**
 - `GET /random?levelId=X&categoryId=Y&themeId=Z` - Question aléatoire avec filtres optionnels
 - `GET /levels` - Liste des niveaux de difficulté
-- `GET /categories` - Liste des catégories
-- `GET /themes?categoryId=X` - Thèmes d'une catégorie
+- `GET /categories?matiereId=X&levelId=Y` - Liste des catégories (filtres optionnels)
+- `GET /themes?categoryId=X&levelId=Y` - Thèmes d'une catégorie (filtrés par niveau optionnel)
 
 **Synchronisation**
 - `POST /command` - Envoyer une commande (admin → overlay)
@@ -319,6 +319,29 @@ Tous les endpoints ci-dessous nécessitent l'en-tête `X-API-Key` en production 
 - `POST /shutdown` - Arrêter le serveur
 
 ### Format des Données
+
+#### Source locale (modèle CSV / Sheets)
+
+Le projet peut utiliser la même **architecture “base de données”** que `data/exemple/` (Matière → Catégorie → Thème (porte le niveau) → Question).
+
+- Les “tables” locales sont stockées dans `data/matieres.json`, `data/categories.json`, `data/themes.json`, `data/levels.json`.
+- Les questions locales peuvent être stockées au format **table** (proche CSV/Sheets) dans `data/questions.json` :
+
+```json
+{
+  "id": "1",
+  "idTheme": "1",
+  "question": "…",
+  "rightAnswer": "Bonne réponse",
+  "proposition1": "Fausse 1",
+  "proposition2": "Fausse 2",
+  "proposition3": "Fausse 3",
+  "explication": "…",
+  "typeQuestion": "QCM"
+}
+```
+
+L’API normalise automatiquement ces questions en format “quiz” (propositions + index de bonne réponse) au moment de servir `/random`.
 
 #### Question
 ```json

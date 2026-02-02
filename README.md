@@ -103,16 +103,16 @@ L'endpoint `GET /random` renvoie une question tirée de `data/questions.json`.
 2) Dans le Sheet : partagez le document avec l'email du compte de service en "Lecteur".
 
 3) Structure attendue du Google Sheets (5 onglets) :
-- **Questions** : ID, IDTheme, IDLevel, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question
-- **Theme** : ID, IDCategory, Name, Description
+- **Questions** : ID, IDTheme, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question
+- **Theme** : ID, IDCategory, IDLevel, Name, Description
 - **Category** : ID, Name, Start_Date, End_Date, IDMatiere
 - **Level** : ID, Libel
 - **Matiere** : ID, Nom
 
 4) Variables d'environnement à définir (ou un fichier `.env` chargé avant `node server.js`) :
 - `GOOGLE_SHEETS_ID` : l'ID du Sheet (entre `/d/` et `/edit`).
-- `GOOGLE_SHEETS_QUESTIONS_RANGE` : par défaut `Questions!A2:J`.
-- `GOOGLE_SHEETS_THEMES_RANGE` : par défaut `Theme!A2:D`.
+- `GOOGLE_SHEETS_QUESTIONS_RANGE` : par défaut `Questions!A2:I`.
+- `GOOGLE_SHEETS_THEMES_RANGE` : par défaut `Theme!A2:E`.
 - `GOOGLE_SHEETS_CATEGORIES_RANGE` : par défaut `Category!A2:E`.
 - `GOOGLE_SHEETS_LEVELS_RANGE` : par défaut `Level!A2:B`.
 - `GOOGLE_SHEETS_MATIERES_RANGE` : par défaut `Matiere!A2:B`.
@@ -129,7 +129,7 @@ $env:GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIV
 node server.js
 ```
 
-L'API tentera d'abord de lire le Sheet, sinon elle retombera sur `data/questions.json`.
+Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet** (et l’API renvoie une erreur si le Sheet est indisponible). Sans configuration Sheets, l’API utilise `data/questions.json`.
 
 ## Conseils OBS
 
@@ -141,7 +141,7 @@ L'API tentera d'abord de lire le Sheet, sinon elle retombera sur `data/questions
 
 - Ajustez les couleurs et animations dans `overlay/style.css`.
 - Changez la durée par défaut dans `overlay/script.js` (`DEFAULT_DURATION`).
-- Ajoutez/éditez des questions dans `data/questions.json`.
+- **Base de données (modèle CSV)** : éditez `data/exemple/*.csv`, puis régénérez les JSON avec `node scripts/build-data-from-example.js` (l’API normalise ensuite automatiquement en format “quiz”).
 
 ## Limitations connues
 

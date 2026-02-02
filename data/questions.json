@@ -1,57 +1,36 @@
 [
   {
-    "id": 1,
-    "question": "Quel est le plus grand océan du monde ?",
-    "propositions": ["Atlantique", "Indien", "Arctique", "Pacifique"],
-    "bonneReponse": 3,
-    "explication": "L'océan Pacifique est le plus vaste du monde.",
-    "theme": "Géographie",
-    "matiere": "Géographie",
-    "niveau": "Collège",
-    "duration": 15
+    "id": "1",
+    "idTheme": "1",
+    "question": "Quel est le nom du fleuve qui traverse l'Égypte ?",
+    "rightAnswer": "Le Nil",
+    "proposition1": "Le Tigre",
+    "proposition2": "L'Euphrate",
+    "proposition3": "Le Jourdain",
+    "explication": "Le Nil est le fleuve principal d'Égypte et a permis le développement de sa civilisation.",
+    "typeQuestion": "QCM"
   },
   {
-    "id": 2,
-    "question": "Quelle est la planète la plus proche du Soleil ?",
-    "propositions": ["Mercure", "Vénus", "Mars", "Terre"],
-    "bonneReponse": 0,
-    "explication": "Mercure orbite à environ 58 millions de kilomètres du Soleil.",
-    "theme": "Astronomie",
-    "matiere": "Sciences",
-    "niveau": "Collège",
-    "duration": 12
+    "id": "2",
+    "idTheme": "2",
+    "question": "Quelle cité grecque est associée à la démocratie antique ?",
+    "rightAnswer": "Athènes",
+    "proposition1": "Sparte",
+    "proposition2": "Thèbes",
+    "proposition3": "Corinthe",
+    "explication": "Athènes est célèbre pour avoir développé une forme de démocratie directe dans l'Antiquité.",
+    "typeQuestion": "QCM"
   },
   {
-    "id": 3,
-    "question": "En musique, combien y a-t-il de notes dans une gamme majeure ?",
-    "propositions": ["5", "6", "7", "8"],
-    "bonneReponse": 2,
-    "explication": "Une gamme majeure est composée de sept notes distinctes.",
-    "theme": "Musique",
-    "matiere": "Arts",
-    "niveau": "Collège",
-    "duration": 18
-  },
-  {
-    "id": 4,
-    "question": "En quelle année a eu lieu la prise de la Bastille ?",
-    "propositions": ["1776", "1789", "1792", "1815"],
-    "bonneReponse": 1,
-    "explication": "La prise de la Bastille a eu lieu le 14 juillet 1789, début de la Révolution française.",
-    "theme": "Histoire",
-    "matiere": "Histoire",
-    "niveau": "Lycée",
-    "duration": 20
-  },
-  {
-    "id": 5,
-    "question": "Quel gaz les plantes absorbent-elles principalement pour la photosynthèse ?",
-    "propositions": ["Oxygène", "Azote", "Dioxyde de carbone", "Hydrogène"],
-    "bonneReponse": 2,
-    "explication": "Le CO2 est absorbé puis converti en glucose grâce à la photosynthèse.",
-    "theme": "Biologie",
-    "matiere": "Sciences",
-    "niveau": "Collège",
-    "duration": 15
+    "id": "3",
+    "idTheme": "3",
+    "question": "Comment s'appelait la grande place publique au centre d'une ville romaine ?",
+    "rightAnswer": "Le forum",
+    "proposition1": "L'agora",
+    "proposition2": "Le colisée",
+    "proposition3": "Le sénat",
+    "explication": "Le forum romain était le centre politique, religieux et commercial de la cité.",
+    "typeQuestion": "QCM"
   }
 ]
+

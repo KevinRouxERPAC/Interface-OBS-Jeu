@@ -21,6 +21,17 @@
     isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   };
 
+  const STORAGE_KEYS = {
+    matiereScope: 'quiz-matiere-scope'
+  };
+
+  const MATIERE_SCOPE = {
+    ALL: 'ALL',
+    HISTOIRE_ONLY: 'HISTOIRE_ONLY'
+  };
+
+  const HISTOIRE_MATIERE_NAME = 'Histoire';
+
   // ========================
   // DOM ELEMENTS
   // ========================
@@ -47,6 +58,9 @@
     btnRestartSelection: document.getElementById('btn-restart-selection'),
     btnRestartSelectionAlways: document.getElementById('btn-restart-selection-always'),
     btnShutdownServer: document.getElementById('btn-shutdown-server'),
+
+    // Options
+    matiereScopeSelect: document.getElementById('matiere-scope'),
     
     // Grilles
     matieresGrid: document.getElementById('matieres-grid'),
@@ -77,6 +91,42 @@
     adminBlockExplication: document.getElementById('admin-block-explication'),
     eventLog: document.getElementById('event-log')
   };
+
+  function normalizeText(s) {
+    return String(s ?? '').trim().toLowerCase();
+  }
+
+  function getMatiereScope() {
+    const raw = (DOM.matiereScopeSelect?.value || localStorage.getItem(STORAGE_KEYS.matiereScope) || MATIERE_SCOPE.ALL);
+    return raw === MATIERE_SCOPE.HISTOIRE_ONLY ? MATIERE_SCOPE.HISTOIRE_ONLY : MATIERE_SCOPE.ALL;
+  }
+
+  function setMatiereScope(scope) {
+    const normalized = scope === MATIERE_SCOPE.HISTOIRE_ONLY ? MATIERE_SCOPE.HISTOIRE_ONLY : MATIERE_SCOPE.ALL;
+    localStorage.setItem(STORAGE_KEYS.matiereScope, normalized);
+    if (DOM.matiereScopeSelect) {
+      DOM.matiereScopeSelect.value = normalized;
+    }
+  }
+
+  function initMatiereScopeSelect() {
+    if (!DOM.matiereScopeSelect) return;
+    const stored = localStorage.getItem(STORAGE_KEYS.matiereScope);
+    setMatiereScope(stored);
+    DOM.matiereScopeSelect.addEventListener('change', () => {
+      setMatiereScope(DOM.matiereScopeSelect.value);
+      const label = getMatiereScope() === MATIERE_SCOPE.HISTOIRE_ONLY ? 'Uniquement Histoire' : 'Toutes les matières';
+      logEvent(`⚙️ Option matières: ${label}`);
+    });
+  }
+
+  function findHistoireMatiere(matieres) {
+    if (!Array.isArray(matieres)) return null;
+    const byName = matieres.find(m => normalizeText(m?.name) === normalizeText(HISTOIRE_MATIERE_NAME));
+    if (byName) return byName;
+    const byId = matieres.find(m => String(m?.id) === '1');
+    return byId || null;
+  }
 
   // ========================
   // STATE
@@ -487,7 +537,11 @@
     try {
       let url = `${CONFIG.apiUrl}/categories`;
       if (state.selectedMatiere?.id) {
-        url += `?matiereId=${state.selectedMatiere.id}`;
+        const params = new URLSearchParams();
+        params.append('matiereId', state.selectedMatiere.id);
+        // Dans le MLD: le niveau filtre indirectement via Theme.idLevel
+        if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
+        url += `?${params.toString()}`;
       }
       const res = await fetchWithApiKey(url);
       if (!res.ok) {
@@ -513,7 +567,10 @@
    */
   async function loadThemesForCategory(categoryId) {
     try {
-      const url = `${CONFIG.apiUrl}/themes?categoryId=${categoryId}`;
+      const params = new URLSearchParams();
+      params.append('categoryId', categoryId);
+      if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
+      const url = `${CONFIG.apiUrl}/themes?${params.toString()}`;
       const res = await fetchWithApiKey(url);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -602,33 +659,14 @@
     
     DOM.levelsGrid.innerHTML = '';
     
-    // Filtrer les niveaux selon la matière sélectionnée
-    let availableLevels = state.allLevels;
-    if (state.selectedMatiere && state.selectedMatiere.levels && Array.isArray(state.selectedMatiere.levels)) {
-      availableLevels = state.allLevels.filter(level => {
-        const levelId = parseInt(level.id, 10);
-        const isAvailable = state.selectedMatiere.levels.includes(levelId);
-        if (CONFIG.isDevelopment) {
-          console.log(`[ADMIN] Niveau ${levelId} (${level.name}) disponible pour ${state.selectedMatiere.name}?`, isAvailable);
-        }
-        return isAvailable;
-      });
-      
-      if (CONFIG.isDevelopment) {
-        console.log(`[ADMIN] Matière: ${state.selectedMatiere.name}, Niveaux disponibles:`, state.selectedMatiere.levels);
-        console.log(`[ADMIN] Tous les niveaux:`, state.allLevels.map(l => ({ id: l.id, name: l.name })));
-        console.log(`[ADMIN] Niveaux filtrés:`, availableLevels.map(l => ({ id: l.id, name: l.name })));
-      }
-    } else {
-      if (CONFIG.isDevelopment) {
-        console.warn('[ADMIN] Pas de matière sélectionnée ou pas de niveaux définis');
-      }
-    }
+    // Nouveau modèle (MLD): le niveau est porté par le Thème (Theme.idLevel), pas par Matiere.
+    // Donc on affiche tous les niveaux et on filtre ensuite les catégories/thèmes côté API.
+    const availableLevels = state.allLevels;
     
     if (availableLevels.length === 0) {
       logEvent('⚠️ Aucun niveau disponible pour cette matière');
       if (CONFIG.isDevelopment) {
-        console.warn('[ADMIN] Aucun niveau disponible pour la matière:', state.selectedMatiere);
+        console.warn('[ADMIN] Aucun niveau disponible (liste vide)');
       }
       // Afficher un message dans la grille
       const msg = document.createElement('div');
@@ -676,7 +714,8 @@
    */
   async function startSelection() {
     logEvent('🎬 Nouvelle sélection lancée');
-    state.screen = 'MATIERE_SELECTION';
+    const matiereScope = getMatiereScope();
+    state.screen = matiereScope === MATIERE_SCOPE.HISTOIRE_ONLY ? 'LEVEL_SELECTION' : 'MATIERE_SELECTION';
     state.selectedMatiere = null;
     state.selectedLevel = null;
     state.selectedCategory = null;
@@ -691,6 +730,53 @@
     
     // Envoie la commande à l'overlay
     sendCommand({ type: 'START_SELECTION' });
+
+    if (matiereScope === MATIERE_SCOPE.HISTOIRE_ONLY) {
+      const histoire = findHistoireMatiere(state.allMatieres);
+      if (!histoire) {
+        logEvent(`✗ Matière "${HISTOIRE_MATIERE_NAME}" introuvable - mode toutes matières activé`);
+        setMatiereScope(MATIERE_SCOPE.ALL);
+        state.screen = 'MATIERE_SELECTION';
+        updateUI();
+        sendCommand({
+          type: 'SHOW_MATIERES_LIST',
+          matieres: state.allMatieres,
+          selectedId: null
+        });
+        return;
+      }
+
+      // Auto-sélection de la matière Histoire
+      state.selectedMatiere = histoire;
+      state.selectedLevel = null;
+      state.selectedCategory = null;
+      state.selectedTheme = null;
+      state.screen = 'LEVEL_SELECTION';
+      updateUI();
+
+      // Affiche la "sélection" côté overlay (Histoire)
+      sendCommand({
+        type: 'SHOW_MATIERES_LIST',
+        matieres: [histoire],
+        selectedId: histoire.id
+      });
+
+      // Charger et afficher les niveaux
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await loadLevels();
+
+      // Afficher les niveaux côté overlay après le délai habituel
+      setTimeout(() => {
+        sendCommand({
+          type: 'SHOW_LEVELS_LIST',
+          levels: state.allLevels,
+          selectedId: null
+        });
+      }, CONFIG.selectionDisplayDelay);
+
+      return;
+    }
+
     sendCommand({
       type: 'SHOW_MATIERES_LIST',
       matieres: state.allMatieres,
@@ -730,13 +816,9 @@
     
     // Attend avant d'afficher les niveaux côté overlay
     setTimeout(() => {
-      // Filtrer les niveaux disponibles pour cette matière
-      const availableLevels = state.allLevels.filter(level => 
-        matiere.levels.includes(parseInt(level.id, 10))
-      );
       sendCommand({
         type: 'SHOW_LEVELS_LIST',
-        levels: availableLevels,
+        levels: state.allLevels,
         selectedId: null
       });
     }, CONFIG.selectionDisplayDelay);
@@ -755,15 +837,10 @@
     // Charge les catégories (filtrées par matière)
     await loadCategories();
     
-    // Filtrer les niveaux disponibles pour cette matière
-    const availableLevels = state.allLevels.filter(l => 
-      state.selectedMatiere.levels.includes(parseInt(l.id, 10))
-    );
-    
     // Envoie la sélection à l'overlay
     sendCommand({
       type: 'SHOW_LEVELS_LIST',
-      levels: availableLevels,
+      levels: state.allLevels,
       selectedId: level.id
     });
     
@@ -1044,6 +1121,7 @@
       console.log('[ADMIN] Démarrage de l\'admin');
     }
     initChannel();
+    initMatiereScopeSelect();
     setupEventListeners();
     updateUI();
     logEvent('✓ Admin prêt');

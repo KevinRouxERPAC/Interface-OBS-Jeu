@@ -1,14 +1,24 @@
 [
-  { "id": "1", "idCategory": "1", "name": "Montagnes" },
-  { "id": "2", "idCategory": "1", "name": "Océans" },
-  { "id": "3", "idCategory": "1", "name": "Capitales" },
-  { "id": "4", "idCategory": "2", "name": "Astronomie" },
-  { "id": "5", "idCategory": "2", "name": "Biologie" },
-  { "id": "6", "idCategory": "2", "name": "Chimie" },
-  { "id": "7", "idCategory": "3", "name": "Moyen Âge" },
-  { "id": "8", "idCategory": "3", "name": "Renaissance" },
-  { "id": "9", "idCategory": "3", "name": "Révolution Française" },
-  { "id": "10", "idCategory": "4", "name": "Musique" },
-  { "id": "11", "idCategory": "4", "name": "Peinture" },
-  { "id": "12", "idCategory": "4", "name": "Architecture" }
+  {
+    "id": "1",
+    "idCategory": "1",
+    "idLevel": "1",
+    "name": "Égypte antique",
+    "description": "Pharaons, pyramides et mythologie."
+  },
+  {
+    "id": "2",
+    "idCategory": "1",
+    "idLevel": "2",
+    "name": "Grèce antique",
+    "description": "Cités grecques, mythes et démocratie."
+  },
+  {
+    "id": "3",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "Rome antique",
+    "description": "République, Empire et héritage romain."
+  }
 ]
+
