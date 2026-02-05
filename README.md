@@ -6,20 +6,24 @@ Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questi
 
 ## 📚 Documentation
 
-- **[📖 DOCUMENTATION.md](./DOCUMENTATION.md)** - **Documentation complète consolidée** (tout en un seul fichier)
+- **[📖 Documentation complète](./docs/DOCUMENTATION.md)** – Vue d’ensemble, API, configuration, dépannage
+- **[🔒 Sécurité et clé API](./docs/SECURITE_API_KEY.md)** – Pourquoi et comment configurer la clé API en production
+- **GUIDE_UTILISATEUR.txt** – Guide de démarrage pour les utilisateurs finaux (streamers)
 
 ## Structure
 
 ```
 Interface OBS Jeu/
+├── DEMARRER.bat        # Lancement simple (Windows) – LiveUpdate + serveur + admin
+├── ARRETER.bat         # Arrêt du serveur (Windows)
 ├── admin/              # Panneau de contrôle (ouvrir dans un navigateur)
 ├── api/                # API backend Node.js
 ├── data/               # Données JSON (questions, niveaux, catégories, thèmes)
-├── docs/               # Documentation
+├── docs/               # Documentation (DOCUMENTATION.md, SECURITE_API_KEY.md)
 ├── overlay/            # Fichiers affichés dans la source navigateur OBS
 └── scripts/            # Scripts organisés par plateforme
-    ├── windows/        # Scripts PowerShell et batch
-    └── unix/           # Scripts bash
+    ├── windows/        # PowerShell et batch (live-update.ps1, launch-server.ps1, start.ps1, etc.)
+    └── unix/            # Bash (live-update.sh, start.sh, stop.sh, etc.)
 ```
 
 ## 🚀 Lancer rapidement
@@ -29,15 +33,31 @@ Interface OBS Jeu/
 **Double-cliquez sur `DEMARRER.bat`** à la racine du projet.
 
 C'est tout ! Le script :
+- ✅ **LiveUpdate** : récupère les mises à jour depuis `main` (si le projet est un clone Git)
 - ✅ Vérifie automatiquement les prérequis (Node.js)
 - ✅ Installe les dépendances si nécessaire
 - ✅ Configure le projet automatiquement
 - ✅ Démarre le serveur
 - ✅ Ouvre l'interface d'administration dans votre navigateur
 
+### LiveUpdate (mises à jour automatiques)
+
+Lors du lancement (DEMARRER.bat ou `start.ps1` / `start.sh`), le projet vérifie s'il est un **clone Git** avec une remote `origin`. Si oui, il exécute `git fetch origin main` puis `git pull origin main` avant de démarrer le serveur. Ainsi, quand vous poussez des mises à jour sur la branche `main`, votre streamer (ou tout utilisateur ayant cloné le dépôt) reçoit les mises à jour au prochain lancement.
+
+**Prérequis pour le LiveUpdate :**
+- Projet obtenu via `git clone <url>` (pas un ZIP téléchargé)
+- Git installé sur la machine
+- Remote `origin` pointant vers votre dépôt (GitHub, GitLab, etc.)
+
+Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lancement continue normalement sans mise à jour.
+
 📖 **Consultez `GUIDE_UTILISATEUR.txt` pour plus d'informations**
 
-### Option 2 : Application graphique (Windows)
+### Option 2 : Arrêter le serveur (Windows)
+
+Double-cliquez sur **`ARRETER.bat`** à la racine du projet pour arrêter proprement le serveur.
+
+### Option 3 : Application graphique (Windows)
 
 **Double-cliquez sur `scripts/windows/LancerApp.bat`** pour ouvrir l'application de gestion avec interface graphique.
 
@@ -49,7 +69,7 @@ L'application permet de :
 
 📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
 
-### Option 2 : Scripts en ligne de commande
+### Option 4 : Scripts en ligne de commande
 
 **Windows :**
 ```powershell
@@ -74,7 +94,7 @@ Puis ouvrez :
 
 📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
 
-### Option 2 : Sans serveur (mode local)
+### Option 5 : Sans serveur (mode local)
 
 1. Ouvrez `overlay/index.html` dans OBS via une Browser Source (URL file://).
 2. Ouvrez `admin/admin.html` dans votre navigateur pour piloter l'overlay.

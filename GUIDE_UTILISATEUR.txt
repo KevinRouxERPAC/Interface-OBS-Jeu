@@ -7,12 +7,20 @@
 • Windows 10 ou supérieur
 • Node.js installé (télécharger depuis https://nodejs.org/)
 • Un navigateur web (Chrome, Firefox, Edge...)
+• (Optionnel) Git installé si vous voulez les mises à jour automatiques (LiveUpdate)
 
 🚀 DÉMARRAGE
 ────────────
 1. Double-cliquez sur le fichier "DEMARRER.bat"
-2. Attendez quelques secondes que le serveur démarre
-3. L'interface d'administration s'ouvrira automatiquement dans votre navigateur
+2. Si le projet a été cloné avec Git, les mises à jour sont récupérées automatiquement (LiveUpdate)
+3. Attendez quelques secondes que le serveur démarre
+4. L'interface d'administration s'ouvrira automatiquement dans votre navigateur
+
+🔄 LIVEUPDATE (MISES À JOUR AUTOMATIQUES)
+─────────────────────────────────────────
+Si vous avez obtenu le projet via "git clone" et que Git est installé, chaque lancement
+avec DEMARRER.bat récupère les dernières modifications sur la branche main. Vous êtes
+toujours à jour avec les mises à jour du développeur sans rien faire.
 
 ✨ UTILISATION
 ─────────────
@@ -32,7 +40,8 @@
 
 🛑 ARRÊT
 ────────
-• Fermez la fenêtre de commande qui s'est ouverte
+• Double-cliquez sur "ARRETER.bat" à la racine du projet (recommandé)
+• Ou fermez la fenêtre de commande qui s'est ouverte
 • Ou utilisez Ctrl+C dans cette fenêtre
 
 ❓ PROBLÈMES COURANTS

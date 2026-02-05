@@ -8,15 +8,16 @@
 
 1. [Vue d'ensemble](#vue-densemble)
 2. [Démarrage Rapide](#démarrage-rapide)
-3. [Installation et Configuration](#installation-et-configuration)
-4. [Utilisation](#utilisation)
-5. [API Documentation](#api-documentation)
-6. [Architecture](#architecture)
-7. [Sécurité](#sécurité)
-8. [Application de Gestion](#application-de-gestion)
-9. [Flux de Jeu](#flux-de-jeu)
-10. [Dépannage](#dépannage)
-11. [Changelog](#changelog)
+3. [LiveUpdate (mises à jour automatiques)](#liveupdate-mises-à-jour-automatiques)
+4. [Installation et Configuration](#installation-et-configuration)
+5. [Utilisation](#utilisation)
+6. [API Documentation](#api-documentation)
+7. [Architecture](#architecture)
+8. [Sécurité](#sécurité)
+9. [Application de Gestion](#application-de-gestion)
+10. [Flux de Jeu](#flux-de-jeu)
+11. [Dépannage](#dépannage)
+12. [Changelog](#changelog)
 
 ---
 
@@ -29,11 +30,15 @@
 ```
 Interface OBS Jeu/
 ├── README.md                    # Documentation principale
-├── DOCUMENTATION.md             # Ce fichier (documentation consolidée)
-├── QUICK_START.md               # Guide de démarrage rapide
-├── GUIDE_LANCEMENT.md           # Guide de lancement détaillé
+├── GUIDE_UTILISATEUR.txt        # Guide utilisateur (streamers)
+├── DEMARRER.bat                 # Lancement simple Windows (LiveUpdate + serveur + admin)
+├── ARRETER.bat                  # Arrêt du serveur (Windows)
 ├── .env.example                 # Template des variables d'environnement
 ├── .gitignore                   # Fichiers à ignorer dans git
+│
+├── docs/                        # 📚 DOCUMENTATION
+│   ├── DOCUMENTATION.md         # Ce fichier (documentation consolidée)
+│   └── SECURITE_API_KEY.md      # Sécurité et clé API
 │
 ├── api/                         # 🔧 SERVEUR BACKEND
 │   ├── server.js                # Point d'entrée principal
@@ -46,18 +51,38 @@ Interface OBS Jeu/
 │   ├── index.html               # Page d'affichage
 │   ├── script.js                # Logique JavaScript
 │   ├── style.css                # Styles CSS
+│   ├── design-system.css        # Variables de design
 │   ├── audio/                   # Sons (30secondes.wav, correct.wav, etc.)
 │   └── image/                   # Images (logo.png)
 │
 ├── admin/                       # 👨‍💼 PANNEAU CONTRÔLE
 │   ├── admin.html               # Interface admin
-│   └── admin.js                 # Logique admin
+│   ├── admin.js                 # Logique admin
+│   └── style.css                # Styles admin
 │
-└── data/                        # 📊 DONNÉES
-    ├── questions.json           # Questions locales
-    ├── levels.json              # Niveaux de difficulté
-    ├── categories.json          # Catégories
-    └── themes.json              # Thèmes
+├── data/                        # 📊 DONNÉES
+│   ├── questions.json           # Questions locales
+│   ├── levels.json              # Niveaux de difficulté
+│   ├── categories.json          # Catégories
+│   ├── themes.json              # Thèmes
+│   └── matieres.json            # Matières
+│
+└── scripts/                     # 🛠️ SCRIPTS
+    ├── windows/                 # PowerShell et batch (Windows)
+    │   ├── live-update.ps1      # LiveUpdate (git pull main)
+    │   ├── launch-server.ps1    # Lancement serveur + admin (utilisé par DEMARRER.bat)
+    │   ├── start.ps1            # Démarrer
+    │   ├── stop.ps1             # Arrêter
+    │   ├── restart.ps1          # Redémarrer
+    │   ├── status.ps1           # Statut
+    │   ├── LancerApp.bat        # Application graphique
+    │   └── QuizOverlayApp.ps1   # Interface de gestion
+    └── unix/                    # Bash (Linux/Mac)
+        ├── live-update.sh       # LiveUpdate (git pull main)
+        ├── start.sh             # Démarrer
+        ├── stop.sh              # Arrêter
+        ├── restart.sh           # Redémarrer
+        └── status.sh            # Statut
 ```
 
 ---
@@ -66,21 +91,34 @@ Interface OBS Jeu/
 
 ### ⚡ 30 secondes pour tester (sans serveur)
 
-1. Ouvrez dans OBS Browser Source :
+1. Ouvrez dans OBS Browser Source l’URL **file** vers le dossier du projet :
    ```
-   file:///C:/Users/kevin/Documents/Interface OBS Jeu/overlay/index.html
+   file:///chemin/vers/Interface OBS Jeu/overlay/index.html
    ```
 
 2. Ouvrez en parallèle dans le navigateur :
    ```
-   file:///C:/Users/kevin/Documents/Interface OBS Jeu/admin/admin.html
+   file:///chemin/vers/Interface OBS Jeu/admin/admin.html
    ```
 
 3. ✅ Prêt ! Les données viennent de `data/questions.json`
 
 ### 🚀 Avec serveur API (recommandé)
 
-#### Application Windows (Recommandé)
+#### Lanceur simple Windows (utilisateurs finaux / streamers)
+
+**Double-cliquez sur `DEMARRER.bat`** à la racine du projet.
+
+Le script :
+- ✅ **LiveUpdate** : récupère les mises à jour depuis la branche `main` (si le projet est un clone Git)
+- ✅ Vérifie les prérequis (Node.js)
+- ✅ Installe les dépendances si nécessaire
+- ✅ Démarre le serveur
+- ✅ Ouvre l'interface d'administration dans le navigateur
+
+**Arrêter le serveur :** double-cliquez sur **`ARRETER.bat`** à la racine du projet.
+
+#### Application Windows (interface graphique)
 
 **Double-cliquez sur `scripts/windows/LancerApp.bat`** pour ouvrir l'application de gestion avec interface graphique.
 
@@ -130,6 +168,21 @@ curl http://localhost:3000/health
 
 - Overlay : `http://localhost:3000/overlay`
 - Admin : `http://localhost:3000/admin`
+
+---
+
+## LiveUpdate (mises à jour automatiques)
+
+Lors du lancement (**DEMARRER.bat**, **launch-server.ps1**, **start.ps1** ou **start.sh**), le projet vérifie s'il est un **clone Git** avec une remote `origin`. Si oui, il exécute `git fetch origin main` puis `git pull origin main` avant de démarrer le serveur. Ainsi, quand vous poussez des mises à jour sur la branche `main`, tout utilisateur ayant cloné le dépôt (par exemple un streamer) reçoit les mises à jour au prochain lancement.
+
+**Prérequis pour le LiveUpdate :**
+- Projet obtenu via `git clone <url>` (pas un ZIP téléchargé)
+- Git installé sur la machine
+- Remote `origin` pointant vers le dépôt (GitHub, GitLab, etc.)
+
+Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lancement continue normalement sans mise à jour. Les scripts concernés sont :
+- **Windows :** `scripts/windows/live-update.ps1` (appelé automatiquement par `launch-server.ps1` et `start.ps1`)
+- **Linux/Mac :** `scripts/unix/live-update.sh` (appelé automatiquement par `start.sh`)
 
 ---
 
@@ -580,6 +633,16 @@ npm run dev
 
 ## Changelog
 
+### Version 1.3 (5 février 2026)
+
+#### Nouvelles fonctionnalités
+- ✅ **LiveUpdate** : mise à jour automatique depuis la branche `main` au lancement (DEMARRER.bat, start.ps1, start.sh)
+- ✅ Scripts `live-update.ps1` (Windows) et `live-update.sh` (Unix) pour `git fetch` + `git pull origin main` avant démarrage
+
+#### Améliorations
+- ✅ Intégration du LiveUpdate dans `launch-server.ps1` et `start.ps1` / `start.sh`
+- ✅ Documentation mise à jour (README, DOCUMENTATION, GUIDE_UTILISATEUR) avec LiveUpdate et structure actuelle
+
 ### Version 1.2 (26 janvier 2026)
 
 #### Nouvelles fonctionnalités
@@ -656,5 +719,5 @@ Pour toute question ou problème :
 
 ---
 
-**Dernière mise à jour :** 26 janvier 2026  
-**Version :** 1.2
+**Dernière mise à jour :** 5 février 2026  
+**Version :** 1.3

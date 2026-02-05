@@ -196,3 +196,7 @@ La clé API est **essentielle en production** pour :
 
 **En développement**, elle est optionnelle pour faciliter les tests.
 **En production**, elle est **obligatoire** pour la sécurité.
+
+---
+
+**Dernière mise à jour :** février 2026
