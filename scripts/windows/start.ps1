@@ -7,6 +7,13 @@ param(
 # Remonter à la racine du projet depuis scripts/windows/
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $apiDir = Join-Path $projectRoot "api"
+
+# LiveUpdate : récupérer les mises à jour depuis main avant de démarrer
+$liveUpdateScript = Join-Path $PSScriptRoot "live-update.ps1"
+if (Test-Path $liveUpdateScript) {
+    & $liveUpdateScript
+}
+
 Push-Location $apiDir
 
 # Charger ou créer .env

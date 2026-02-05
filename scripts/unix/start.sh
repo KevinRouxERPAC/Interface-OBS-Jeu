@@ -8,6 +8,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 API_DIR="$PROJECT_ROOT/api"
 PID_FILE="$API_DIR/.server.pid"
 
+# LiveUpdate : récupérer les mises à jour depuis main avant de démarrer
+LIVE_UPDATE="$SCRIPT_DIR/live-update.sh"
+[ -f "$LIVE_UPDATE" ] && [ -x "$LIVE_UPDATE" ] && "$LIVE_UPDATE"
+[ -f "$LIVE_UPDATE" ] && [ ! -x "$LIVE_UPDATE" ] && bash "$LIVE_UPDATE"
+
 cd "$API_DIR"
 
 # Vérifier si le serveur est déjà en cours d'exécution
