@@ -720,10 +720,16 @@
   // FLOW HANDLERS
   // ========================
 
+  const BUTTON_DEBOUNCE_MS = 800;
+
   /**
-   * Démarre une nouvelle sélection
+   * Démarre une nouvelle sélection (debounce pour éviter double envoi → overlay revient en arrière)
    */
+  let lastStartSelectionAt = 0;
   async function startSelection() {
+    if (Date.now() - lastStartSelectionAt < BUTTON_DEBOUNCE_MS) return;
+    lastStartSelectionAt = Date.now();
+
     logEvent('🎬 Nouvelle sélection lancée');
     const matiereScope = getMatiereScope();
     state.screen = matiereScope === MATIERE_SCOPE.HISTOIRE_ONLY ? 'LEVEL_SELECTION' : 'MATIERE_SELECTION';
@@ -796,9 +802,13 @@
   }
 
   /**
-   * Sélectionne une matière
+   * Sélectionne une matière (debounce pour éviter double envoi de commandes)
    */
+  let lastMatiereClickAt = 0;
   async function selectMatiere(matiere) {
+    if (Date.now() - lastMatiereClickAt < SELECTION_DEBOUNCE_MS) return;
+    lastMatiereClickAt = Date.now();
+
     logEvent(`📚 Matière sélectionnée: ${matiere.name}`);
     state.selectedMatiere = matiere;
     state.selectedLevel = null;
@@ -836,9 +846,14 @@
   }
 
   /**
-   * Sélectionne une difficulté
+   * Sélectionne une difficulté (debounce pour éviter double-clic → overlay revient aux difficultés)
    */
+  let lastLevelClickAt = 0;
+  const SELECTION_DEBOUNCE_MS = 800;
   async function selectLevel(level) {
+    if (Date.now() - lastLevelClickAt < SELECTION_DEBOUNCE_MS) return;
+    lastLevelClickAt = Date.now();
+
     logEvent(`🎯 Difficulté sélectionnée: ${level.name}`);
     state.selectedLevel = level;
     state.selectedCategory = null;
@@ -866,9 +881,13 @@
   }
 
   /**
-   * Sélectionne une catégorie
+   * Sélectionne une catégorie (debounce pour éviter double envoi)
    */
+  let lastCategoryClickAt = 0;
   async function selectCategory(category) {
+    if (Date.now() - lastCategoryClickAt < SELECTION_DEBOUNCE_MS) return;
+    lastCategoryClickAt = Date.now();
+
     logEvent(`📂 Catégorie sélectionnée: ${category.name}`);
     state.selectedCategory = category;
     state.selectedTheme = null;
@@ -891,9 +910,13 @@
   }
 
   /**
-   * Tire un thème aléatoire
+   * Tire un thème aléatoire (debounce pour éviter double envoi)
    */
+  let lastDrawThemeAt = 0;
   function drawTheme() {
+    if (Date.now() - lastDrawThemeAt < BUTTON_DEBOUNCE_MS) return;
+    lastDrawThemeAt = Date.now();
+
     if (!state.allThemes || state.allThemes.length === 0) {
       logEvent('✗ Aucun thème disponible');
       alert('Aucun thème disponible pour cette catégorie');
@@ -918,11 +941,15 @@
   }
 
   /**
-   * Lance une question
+   * Lance une question (debounce pour éviter double envoi)
    * Si aucune question n'est disponible pour le thème, relance automatiquement le tirage de thème
    * Si aucune question n'est disponible après plusieurs tentatives, relance automatiquement la sélection complète
    */
+  let lastLaunchQuestionAt = 0;
   async function launchQuestion(maxRetries = 5) {
+    if (maxRetries === 5 && Date.now() - lastLaunchQuestionAt < BUTTON_DEBOUNCE_MS) return;
+    if (maxRetries === 5) lastLaunchQuestionAt = Date.now();
+
     logEvent('🚀 Lancement d\'une question...');
     
     const question = await loadRandomQuestion();
@@ -1002,14 +1029,18 @@
   }
 
   /**
-   * Révèle la réponse
+   * Révèle la réponse (debounce pour éviter double envoi)
    */
+  let lastRevealAnswerAt = 0;
   function revealAnswer() {
+    if (Date.now() - lastRevealAnswerAt < 500) return;
+    lastRevealAnswerAt = Date.now();
+
     if (!state.currentQuestion) {
       alert('Aucune question active');
       return;
     }
-    
+
     logEvent('✅ Réponse révélée');
     state.answerRevealed = true;
     updateCurrentQuestion(state.currentQuestion);
