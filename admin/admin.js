@@ -66,7 +66,6 @@
     btnNewQuestion: document.getElementById('btn-new-question'),
     btnRestartSelection: document.getElementById('btn-restart-selection'),
     btnRestartSelectionAlways: document.getElementById('btn-restart-selection-always'),
-    btnShutdownServer: document.getElementById('btn-shutdown-server'),
 
     // Options
     matiereScopeSelect: document.getElementById('matiere-scope'),
@@ -1033,56 +1032,6 @@
     await startSelection();
   }
 
-  /**
-   * Arrête le serveur
-   */
-  async function shutdownServer() {
-    if (!confirm('Êtes-vous sûr de vouloir arrêter le serveur ?\n\nL\'overlay et l\'admin ne fonctionneront plus après l\'arrêt.')) {
-      return;
-    }
-    
-    try {
-      logEvent('Arrêt du serveur demandé...');
-      DOM.btnShutdownServer.disabled = true;
-      DOM.btnShutdownServer.textContent = '⏳ Arrêt en cours...';
-      
-      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/shutdown`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (res.ok) {
-        logEvent('✓ Serveur arrêté avec succès');
-        alert('Le serveur a été arrêté avec succès.\n\nVous pouvez le redémarrer depuis l\'application de gestion.');
-        
-        // Désactiver tous les boutons
-        DOM.btnStartSelection.disabled = true;
-        DOM.btnDrawTheme.disabled = true;
-        DOM.btnLaunchQuestion.disabled = true;
-        DOM.btnRevealAnswer.disabled = true;
-        DOM.btnNewQuestion.disabled = true;
-        DOM.btnRestartSelection.disabled = true;
-        if (DOM.btnRestartSelectionAlways) DOM.btnRestartSelectionAlways.disabled = true;
-        
-        // Mettre à jour le statut
-        if (DOM.statusDot) {
-          DOM.statusDot.classList.remove('connected', 'waiting');
-        }
-        if (DOM.statusText) {
-          DOM.statusText.textContent = 'État: SERVEUR ARRÊTÉ';
-        }
-      } else {
-        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-        throw new Error(errorData.error || `HTTP ${res.status}`);
-      }
-    } catch (err) {
-      logEvent(`✗ Erreur lors de l'arrêt: ${err.message}`);
-      alert(`Erreur lors de l'arrêt du serveur:\n${err.message}`);
-      DOM.btnShutdownServer.disabled = false;
-      DOM.btnShutdownServer.textContent = '🛑 Arrêter le Serveur';
-    }
-  }
-
   // ========================
   // EVENT LISTENERS
   // ========================
@@ -1097,7 +1046,6 @@
     if (DOM.btnRestartSelectionAlways) {
       DOM.btnRestartSelectionAlways.addEventListener('click', restartSelection);
     }
-    DOM.btnShutdownServer.addEventListener('click', shutdownServer);
     
     // Ajoute les boutons A/B/C/D en section active pour sélectionner la réponse
     const keyLabels = ['A', 'B', 'C', 'D'];

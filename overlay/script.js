@@ -56,7 +56,6 @@
     // Thème
     themeBreadcrumb: document.getElementById('theme-breadcrumb'),
     themeName: document.getElementById('theme-name'),
-    themeDescription: document.getElementById('theme-description'),
     
     // Question
     question: document.getElementById('question'),
@@ -412,7 +411,6 @@
     
     DOM.themeBreadcrumb.textContent = `${matiere?.name || ''} | ${level?.name || ''} | ${category?.name || ''}`;
     DOM.themeName.textContent = theme.name || 'Thème';
-    DOM.themeDescription.textContent = theme.description || '';
     
     if (CONFIG.isDevelopment) {
       console.log('[OVERLAY] Thème affiché:', theme.name);
