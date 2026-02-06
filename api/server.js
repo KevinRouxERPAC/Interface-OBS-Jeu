@@ -73,18 +73,14 @@ const limiter = rateLimit({
 });
 
 // Appliquer le rate limiting de manière conditionnelle
-// En développement, on skip pour les routes critiques de l'admin (req.path est relatif au mount /api)
+// Exclure /command et /state du rate limit : l’overlay poll /command toutes les 500 ms, la limite 100/15min provoquerait des 429.
+// Ces routes sont protégées par API key en production.
 router.use((req, res, next) => {
   const urlPath = req.path || (req.url ? req.url.split('?')[0] : '');
-  const shouldSkip = config.isDevelopment && (
-    urlPath === '/command' ||
-    urlPath === '/state'
-  );
-
-  if (shouldSkip) {
+  const isPollingRoute = urlPath === '/command' || urlPath === '/state';
+  if (isPollingRoute) {
     return next();
   }
-
   limiter(req, res, next);
 });
 
