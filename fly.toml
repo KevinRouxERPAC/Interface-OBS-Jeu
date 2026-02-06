@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for interface-obs-jeu-misty-wind-3670 on 2026-02-06T19:25:32+01:00
+# fly.toml app configuration file generated for interface-obs-jeu on 2026-02-06T19:45:54+01:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'interface-obs-jeu-misty-wind-3670'
+app = 'interface-obs-jeu'
 primary_region = 'cdg'
 
 [build]
