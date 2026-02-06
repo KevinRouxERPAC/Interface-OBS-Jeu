@@ -2,7 +2,7 @@
 
 # Remonter à la racine du projet depuis scripts/windows/
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$pidFile = Join-Path $projectRoot "api\.server.pid"
+$pidFile = Join-Path $projectRoot ".server.pid"
 
 if (Test-Path $pidFile) {
     $serverPid = Get-Content $pidFile -Raw

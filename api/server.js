@@ -25,8 +25,14 @@ const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
 
-const app = express();
+const router = express.Router();
 const logger = new Logger(config.logLevel);
+
+// Référence au serveur HTTP racine (pour route /shutdown)
+let httpServer = null;
+function setServer(s) {
+  httpServer = s;
+}
 const questionsPath = path.join(__dirname, '..', 'data', 'questions.json');
 
 let lastCommand = { id: 0, cmd: null, timestamp: 0 };
@@ -48,8 +54,8 @@ const corsOptions = {
   credentials: false
 };
 
-app.use(cors(corsOptions));
-app.use(express.json());
+router.use(cors(corsOptions));
+router.use(express.json());
 
 // Rate limiting pour protéger contre les attaques DoS
 const limiter = rateLimit({
@@ -67,20 +73,18 @@ const limiter = rateLimit({
 });
 
 // Appliquer le rate limiting de manière conditionnelle
-// En développement, on skip pour les routes critiques de l'admin
-app.use((req, res, next) => {
-  // Extraire le path de manière fiable depuis req.url
+// En développement, on skip pour les routes critiques de l'admin (req.path est relatif au mount /api)
+router.use((req, res, next) => {
   const urlPath = req.path || (req.url ? req.url.split('?')[0] : '');
   const shouldSkip = config.isDevelopment && (
-    urlPath.startsWith('/admin') || 
-    urlPath === '/command' || 
+    urlPath === '/command' ||
     urlPath === '/state'
   );
-  
+
   if (shouldSkip) {
-    return next(); // Skip rate limiting
+    return next();
   }
-  
+
   limiter(req, res, next);
 });
 
@@ -106,40 +110,41 @@ const validateApiKey = (req, res, next) => {
 };
 
 // Middleware d'erreur CORS
-app.use((err, req, res, next) => {
+router.use((err, req, res, next) => {
   if (err.message === 'CORS non autorisé pour cette origine') {
     return res.status(403).json({ error: 'Accès non autorisé' });
   }
   next(err);
 });
 
-// Servir les fichiers statiques
-app.use('/overlay', express.static(path.join(__dirname, '..', 'overlay')));
-app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
-app.use('/data', express.static(path.join(__dirname, '..', 'data')));
+// Servir les données statiques sous /api/data (overlay et admin sont servis par le serveur racine)
+router.use('/data', express.static(path.join(__dirname, '..', 'data')));
 
 // Health check (publique)
-app.get('/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Arrêt du serveur - PROTÉGÉ par API Key
-app.post('/shutdown', validateApiKey, (req, res) => {
+// Arrêt du serveur - PROTÉGÉ par API Key (ferme le serveur HTTP racine si fourni)
+router.post('/shutdown', validateApiKey, (req, res) => {
   logger.info('SERVER', 'Demande d\'arrêt reçue depuis l\'admin');
   res.json({ ok: true, message: 'Arrêt du serveur en cours...' });
-  
-  // Arrêt gracieux après un court délai pour permettre la réponse
+
   setTimeout(() => {
     logger.info('SERVER', 'Arrêt du serveur...');
-    server.close(() => {
-      logger.info('SERVER', 'Serveur arrêté');
+    if (httpServer) {
+      httpServer.close(() => {
+        logger.info('SERVER', 'Serveur arrêté');
+        process.exit(0);
+      });
+    } else {
       process.exit(0);
-    });
+    }
   }, 500);
 });
 
 // Command bus - PROTÉGÉ par API Key
-app.post('/command', validateApiKey, (req, res) => {
+router.post('/command', validateApiKey, (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Commande invalide' });
   }
@@ -148,12 +153,12 @@ app.post('/command', validateApiKey, (req, res) => {
 });
 
 // Lecture des commandes - PROTÉGÉ par API Key
-app.get('/command', validateApiKey, (_req, res) => {
+router.get('/command', validateApiKey, (_req, res) => {
   res.json(lastCommand);
 });
 
 // État de l'overlay - PROTÉGÉ par API Key
-app.post('/state', validateApiKey, (req, res) => {
+router.post('/state', validateApiKey, (req, res) => {
   if (!req.body) {
     return res.status(400).json({ error: 'État invalide' });
   }
@@ -161,7 +166,7 @@ app.post('/state', validateApiKey, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/state', validateApiKey, (_req, res) => {
+router.get('/state', validateApiKey, (_req, res) => {
   res.json(overlayState);
 });
 
@@ -459,7 +464,7 @@ async function fetchQuestionsFromSheets() {
   }
 }
 
-app.get('/matieres', async (_req, res) => {
+router.get('/matieres', async (_req, res) => {
   try {
     if (sheetId && saEmail && saKey) {
       try {
@@ -512,7 +517,7 @@ app.get('/matieres', async (_req, res) => {
   }
 });
 
-app.get('/levels', async (_req, res) => {
+router.get('/levels', async (_req, res) => {
   try {
     if (sheetId && saEmail && saKey) {
       try {
@@ -549,7 +554,7 @@ app.get('/levels', async (_req, res) => {
   }
 });
 
-app.get('/categories', async (req, res) => {
+router.get('/categories', async (req, res) => {
   try {
     const matiereId = req.query.matiereId;
     const levelId = req.query.levelId;
@@ -640,7 +645,7 @@ app.get('/categories', async (req, res) => {
   }
 });
 
-app.get('/themes', async (req, res) => {
+router.get('/themes', async (req, res) => {
   try {
     const categoryId = req.query.categoryId;
     const levelId = req.query.levelId;
@@ -713,7 +718,7 @@ app.get('/themes', async (req, res) => {
   }
 });
 
-app.get('/random', async (req, res) => {
+router.get('/random', async (req, res) => {
   try {
     const { matiereId, levelId, categoryId, themeId } = req.query;
     
@@ -803,33 +808,9 @@ app.get('/random', async (req, res) => {
 });
 
 // Middleware d'erreur global (DOIT être à la fin)
-app.use((err, req, res, next) => {
+router.use((err, req, res, next) => {
   logger.error('SERVER', `Erreur non gérée: ${err.message}`);
   res.status(500).json({ error: 'Erreur serveur interne' });
 });
 
-// Démarrage du serveur
-const server = app.listen(config.port, () => {
-  logger.info('SERVER', `API quiz démarrée`, { 
-    port: config.port, 
-    env: config.nodeEnv,
-    origins: config.allowedOrigins 
-  });
-});
-
-// Gestion des arrêts gracieux
-process.on('SIGTERM', () => {
-  logger.info('SERVER', 'Signal SIGTERM reçu, arrêt gracieux...');
-  server.close(() => {
-    logger.info('SERVER', 'Serveur arrêté');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  logger.info('SERVER', 'Signal SIGINT reçu, arrêt gracieux...');
-  server.close(() => {
-    logger.info('SERVER', 'Serveur arrêté');
-    process.exit(0);
-  });
-});
+module.exports = { router, setServer };

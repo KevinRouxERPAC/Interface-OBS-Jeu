@@ -50,9 +50,9 @@ try {
     if ($statusBefore -ne $statusAfter) {
         Write-Host "[LiveUpdate] Mise a jour installee - projet a jour avec main" -ForegroundColor Green
         # Si des fichiers package.json ou node_modules ont changé, suggérer npm install
-        $apiPackage = Join-Path $projectRoot "api\package.json"
-        if (Test-Path $apiPackage) {
-            Write-Host "[LiveUpdate] Pensez a relancer si des dependances ont change (npm install dans api/)" -ForegroundColor DarkGray
+        $rootPackage = Join-Path $projectRoot "package.json"
+        if (Test-Path $rootPackage) {
+            Write-Host "[LiveUpdate] Pensez a relancer si des dependances ont change (npm install a la racine)" -ForegroundColor DarkGray
         }
     } else {
         Write-Host "[LiveUpdate] Deja a jour avec main" -ForegroundColor Green

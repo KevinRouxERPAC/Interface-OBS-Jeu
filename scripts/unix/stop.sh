@@ -5,7 +5,7 @@
 # Remonter à la racine du projet depuis scripts/unix/
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PID_FILE="$PROJECT_ROOT/api/.server.pid"
+PID_FILE="$PROJECT_ROOT/.server.pid"
 
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")

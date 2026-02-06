@@ -42,8 +42,8 @@ STATUS_AFTER=$(git rev-parse HEAD 2>/dev/null)
 
 if [ "$STATUS_BEFORE" != "$STATUS_AFTER" ]; then
     echo "[LiveUpdate] Mise à jour installée - projet à jour avec main"
-    if [ -f "$PROJECT_ROOT/api/package.json" ]; then
-        echo "[LiveUpdate] Pensez à relancer si des dépendances ont changé (npm install dans api/)"
+    if [ -f "$PROJECT_ROOT/package.json" ]; then
+        echo "[LiveUpdate] Pensez à relancer si des dépendances ont changé (npm install à la racine)"
     fi
 else
     echo "[LiveUpdate] Déjà à jour avec main"

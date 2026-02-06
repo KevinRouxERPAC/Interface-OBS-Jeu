@@ -8,22 +8,23 @@ Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questi
 
 - **[📖 Documentation complète](./docs/DOCUMENTATION.md)** – Vue d’ensemble, API, configuration, dépannage
 - **[🔒 Sécurité et clé API](./docs/SECURITE_API_KEY.md)** – Pourquoi et comment configurer la clé API en production
-- **GUIDE_UTILISATEUR.txt** – Guide de démarrage pour les utilisateurs finaux (streamers)
 
 ## Structure
 
 ```
 Interface OBS Jeu/
+├── server.js           # Serveur Express unifié (racine)
+├── package.json        # Dépendances et scripts npm (racine)
 ├── DEMARRER.bat        # Lancement simple (Windows) – LiveUpdate + serveur + admin
 ├── ARRETER.bat         # Arrêt du serveur (Windows)
 ├── admin/              # Panneau de contrôle (ouvrir dans un navigateur)
-├── api/                # API backend Node.js
+├── api/                # API backend Node.js (router Express)
 ├── data/               # Données JSON (questions, niveaux, catégories, thèmes)
 ├── docs/               # Documentation (DOCUMENTATION.md, SECURITE_API_KEY.md)
-├── overlay/            # Fichiers affichés dans la source navigateur OBS
+├── overlay/             # Fichiers affichés dans la source navigateur OBS
 └── scripts/            # Scripts organisés par plateforme
     ├── windows/        # PowerShell et batch (live-update.ps1, launch-server.ps1, start.ps1, etc.)
-    └── unix/            # Bash (live-update.sh, start.sh, stop.sh, etc.)
+    └── unix/           # Bash (live-update.sh, start.sh, stop.sh, etc.)
 ```
 
 ## 🚀 Lancer rapidement
@@ -50,8 +51,6 @@ Lors du lancement (DEMARRER.bat ou `start.ps1` / `start.sh`), le projet vérifie
 - Remote `origin` pointant vers votre dépôt (GitHub, GitLab, etc.)
 
 Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lancement continue normalement sans mise à jour.
-
-📖 **Consultez `GUIDE_UTILISATEUR.txt` pour plus d'informations**
 
 ### Option 2 : Arrêter le serveur (Windows)
 
@@ -86,6 +85,12 @@ Puis ouvrez :
 - `http://localhost:3000/overlay` dans OBS (Browser Source)
 - `http://localhost:3000/admin` dans votre navigateur
 
+**Alternative simple (recommandé pour Render.com) :**
+```bash
+npm install
+npm start
+```
+
 **Arrêter :**
 ```powershell
 .\scripts\windows\stop.ps1    # Windows
@@ -103,15 +108,19 @@ Communication overlay/admin : `BroadcastChannel` (même machine / même origine)
 
 ## Option API Node.js
 
-Si vous préférez servir les questions via une API :
+Le projet utilise maintenant un serveur Node.js unifié à la racine :
 
 ```bash
-cd api
-npm install express cors googleapis
-node server.js
+npm install
+npm start
 ```
 
-L'endpoint `GET /random` renvoie une question tirée de `data/questions.json`.
+Le serveur démarre sur le port 3000 (ou celui défini dans `PORT`) et expose :
+- `/overlay` - Interface overlay pour OBS
+- `/admin` - Panneau d'administration
+- `/api` - API REST (endpoints: `/api/random`, `/api/health`, etc.)
+
+L'endpoint `GET /api/random` renvoie une question tirée de `data/questions.json` ou Google Sheets si configuré.
 
 ### Connexion Google Sheets (service account)
 
@@ -161,7 +170,7 @@ Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet*
 
 - Ajustez les couleurs et animations dans `overlay/style.css`.
 - Changez la durée par défaut dans `overlay/script.js` (`DEFAULT_DURATION`).
-- **Base de données (modèle CSV)** : éditez `data/exemple/*.csv`, puis régénérez les JSON avec `node scripts/build-data-from-example.js` (l’API normalise ensuite automatiquement en format “quiz”).
+- **Base de données (modèle CSV)** : si vous avez des CSV dans `data/exemple/`, régénérez les JSON avec `node scripts/build-data-from-example.js` (l’API normalise ensuite automatiquement en format “quiz”).
 
 ## Limitations connues
 

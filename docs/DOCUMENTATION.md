@@ -30,7 +30,8 @@
 ```
 Interface OBS Jeu/
 ├── README.md                    # Documentation principale
-├── GUIDE_UTILISATEUR.txt        # Guide utilisateur (streamers)
+├── server.js                    # Serveur Express unifié (point d'entrée)
+├── package.json                 # Dépendances et scripts npm (racine)
 ├── DEMARRER.bat                 # Lancement simple Windows (LiveUpdate + serveur + admin)
 ├── ARRETER.bat                  # Arrêt du serveur (Windows)
 ├── .env.example                 # Template des variables d'environnement
@@ -40,12 +41,11 @@ Interface OBS Jeu/
 │   ├── DOCUMENTATION.md         # Ce fichier (documentation consolidée)
 │   └── SECURITE_API_KEY.md      # Sécurité et clé API
 │
-├── api/                         # 🔧 SERVEUR BACKEND
-│   ├── server.js                # Point d'entrée principal
+├── api/                         # 🔧 API BACKEND (router Express)
+│   ├── server.js                # Router API (monté sous /api)
 │   ├── config.js                # Configuration centralisée
 │   ├── logger.js                # Système de logging
-│   ├── validators.js            # Validation des données
-│   └── package.json             # Dépendances Node.js
+│   └── validators.js            # Validation des données
 │
 ├── overlay/                     # 👁️ AFFICHAGE OBS
 │   ├── index.html               # Page d'affichage
@@ -70,7 +70,7 @@ Interface OBS Jeu/
 └── scripts/                     # 🛠️ SCRIPTS
     ├── windows/                 # PowerShell et batch (Windows)
     │   ├── live-update.ps1      # LiveUpdate (git pull main)
-    │   ├── launch-server.ps1    # Lancement serveur + admin (utilisé par DEMARRER.bat)
+    │   ├── launch-server.ps1   # Lancement serveur + admin (utilisé par DEMARRER.bat)
     │   ├── start.ps1            # Démarrer
     │   ├── stop.ps1             # Arrêter
     │   ├── restart.ps1          # Redémarrer
@@ -149,8 +149,9 @@ chmod +x scripts/unix/*.sh
 
 #### Installation manuelle
 
+À la racine du projet :
+
 ```bash
-cd api
 npm install
 npm run dev          # Développement
 npm start            # Production
@@ -160,7 +161,7 @@ npm start            # Production
 
 ```bash
 # Le serveur écoute sur http://localhost:3000
-curl http://localhost:3000/health
+curl http://localhost:3000/api/health
 # Doit retourner : {"status":"ok","timestamp":"..."}
 ```
 
@@ -196,12 +197,12 @@ Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lanceme
 
 ### Configuration des variables d'environnement
 
-1. Copiez le fichier d'exemple :
+1. Copiez le fichier d'exemple à la racine du projet :
    ```bash
-   cp .env.example api/.env
+   cp .env.example .env
    ```
 
-2. Éditez `api/.env` avec vos paramètres :
+2. Éditez `.env` à la racine avec vos paramètres :
    ```bash
    # Serveur
    PORT=3000
@@ -233,12 +234,12 @@ La clé API protège votre serveur contre les accès non autorisés. **Sans clé
 - 🔧 **Modifier l'état de l'overlay** - Désynchroniser ou casser l'affichage
 - 👁️ **Espionner vos commandes** - Voir ce que vous préparez avant l'affichage
 
-**Endpoints protégés par la clé API :**
-- `POST /shutdown` - Arrêt du serveur
-- `POST /command` - Envoi de commandes
-- `GET /command` - Lecture des commandes
-- `POST /state` - Modification de l'état
-- `GET /state` - Lecture de l'état
+**Endpoints protégés par la clé API (sous `/api`) :**
+- `POST /api/shutdown` - Arrêt du serveur
+- `POST /api/command` - Envoi de commandes
+- `GET /api/command` - Lecture des commandes
+- `POST /api/state` - Modification de l'état
+- `GET /api/state` - Lecture de l'état
 
 #### En développement
 La clé API est **optionnelle**. Le serveur accepte toutes les requêtes pour faciliter le développement.
@@ -348,28 +349,28 @@ Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet*
 
 #### Endpoints publics (sans authentification)
 
-- `GET /health` - Vérifier que le serveur est actif
+- `GET /api/health` - Vérifier que le serveur est actif
 - `GET /overlay` - Page d'affichage overlay (lecture seule)
 - `GET /admin` - Interface admin
 
 #### Endpoints protégés (requièrent `X-API-Key`)
 
-Tous les endpoints ci-dessous nécessitent l'en-tête `X-API-Key` en production :
+Tous les endpoints ci-dessous sont préfixés par `/api` et nécessitent l'en-tête `X-API-Key` en production :
 
 **Questions**
-- `GET /random?levelId=X&categoryId=Y&themeId=Z` - Question aléatoire avec filtres optionnels
-- `GET /levels` - Liste des niveaux de difficulté
-- `GET /categories?matiereId=X&levelId=Y` - Liste des catégories (filtres optionnels)
-- `GET /themes?categoryId=X&levelId=Y` - Thèmes d'une catégorie (filtrés par niveau optionnel)
+- `GET /api/random?levelId=X&categoryId=Y&themeId=Z` - Question aléatoire avec filtres optionnels
+- `GET /api/levels` - Liste des niveaux de difficulté
+- `GET /api/categories?matiereId=X&levelId=Y` - Liste des catégories (filtres optionnels)
+- `GET /api/themes?categoryId=X&levelId=Y` - Thèmes d'une catégorie (filtrés par niveau optionnel)
 
 **Synchronisation**
-- `POST /command` - Envoyer une commande (admin → overlay)
-- `GET /command` - Lire la dernière commande
-- `POST /state` - Mettre à jour l'état de l'overlay
-- `GET /state` - Lire l'état actuel
+- `POST /api/command` - Envoyer une commande (admin → overlay)
+- `GET /api/command` - Lire la dernière commande
+- `POST /api/state` - Mettre à jour l'état de l'overlay
+- `GET /api/state` - Lire l'état actuel
 
 **Administration**
-- `POST /shutdown` - Arrêter le serveur
+- `POST /api/shutdown` - Arrêter le serveur
 
 ### Format des Données
 
@@ -514,10 +515,10 @@ L’API normalise automatiquement ces questions en format “quiz” (propositio
 npm audit
 
 # Vérifier la syntaxe
-node -c api/server.js
+node -c server.js
 
 # Tester l'API en local
-curl -H "X-API-Key: $API_KEY" http://localhost:3000/health
+curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/health
 ```
 
 ---
@@ -582,8 +583,7 @@ Le quiz fonctionne en deux interfaces synchronisées :
 # Vérifiez que Node.js est installé
 node --version
 
-# Vérifiez les dépendances
-cd api
+# À la racine du projet : installez les dépendances
 npm install
 
 # Relancez en mode debug
@@ -594,14 +594,14 @@ npm run dev
 ### OBS ne voit pas l'overlay
 
 - Vérifiez l'URL dans la Browser Source de OBS
-- Vérifiez que le serveur écoute (check `http://localhost:3000/health`)
+- Vérifiez que le serveur écoute (check `http://localhost:3000/api/health`)
 - Essayez avec `http://localhost:3000/overlay` au lieu d'une URL `file://`
 
 ### Admin ne se synchro pas avec overlay
 
 - Ouvrez la console du navigateur (F12)
 - Cherchez les erreurs en rouge
-- Vérifiez que le serveur tourne (check `/health`)
+- Vérifiez que le serveur tourne (check `http://localhost:3000/api/health`)
 - En développement : aucune clé API nécessaire
 - En production : vérifiez que la clé API est correctement configurée
 
@@ -633,6 +633,19 @@ npm run dev
 
 ## Changelog
 
+### Version 1.4 (février 2026)
+
+#### Architecture
+- ✅ **Serveur unifié à la racine** : `server.js` et `package.json` à la racine du projet
+- ✅ **Déploiement Render.com** : `npm install` + `npm start` pour déployer en Web Service Node.js
+- ✅ API montée sous `/api` (health check : `/api/health`, commandes : `/api/command`, etc.)
+- ✅ Fichier `.env` à la racine (plus dans `api/`)
+- ✅ Scripts Windows/Unix et Docker mis à jour pour la racine
+
+#### Nettoyage
+- ✅ Suppression de `api/package.json` (redondant)
+- ✅ Documentation consolidée et à jour
+
 ### Version 1.3 (5 février 2026)
 
 #### Nouvelles fonctionnalités
@@ -641,7 +654,7 @@ npm run dev
 
 #### Améliorations
 - ✅ Intégration du LiveUpdate dans `launch-server.ps1` et `start.ps1` / `start.sh`
-- ✅ Documentation mise à jour (README, DOCUMENTATION, GUIDE_UTILISATEUR) avec LiveUpdate et structure actuelle
+- ✅ Documentation mise à jour (README, DOCUMENTATION) avec LiveUpdate et structure actuelle
 
 ### Version 1.2 (26 janvier 2026)
 
@@ -719,5 +732,5 @@ Pour toute question ou problème :
 
 ---
 
-**Dernière mise à jour :** 5 février 2026  
-**Version :** 1.3
+**Dernière mise à jour :** février 2026  
+**Version :** 1.4
