@@ -89,6 +89,8 @@ fly deploy
 - **Admin** : `https://<votre-app>.fly.dev/admin`
 - **API** : `https://<votre-app>.fly.dev/api` (ex. `/api/health`, `/api/random`)
 
+**Lien entre les deux interfaces** : admin et overlay doivent utiliser la **même base** (même app Fly.io). En ouvrant l’admin et l’overlay depuis les URLs ci-dessus, ils utilisent automatiquement la même API. Dans OBS, configure la source *Browser* avec l’URL de l’overlay (ex. `https://<votre-app>.fly.dev/overlay`). Si besoin de forcer l’API (contexte particulier), ajoute `?apiBase=https://<votre-app>.fly.dev` à l’URL de l’admin ou de l’overlay.
+
 Pensez à mettre à jour `ALLOWED_ORIGINS` si vous changez de domaine ou d’app.
 
 ## Option : sans serveur (mode local uniquement)

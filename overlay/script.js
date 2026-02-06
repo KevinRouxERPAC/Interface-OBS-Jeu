@@ -13,12 +13,18 @@
   // En développement, pas de clé API nécessaire
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const urlParams = new URLSearchParams(window.location.search);
+  const apiBaseFromUrl = urlParams.get('apiBase') || urlParams.get('api');
+  const origin = window.location.origin;
+  const defaultApiUrl = origin + '/api';
+  const apiUrl = apiBaseFromUrl
+    ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
+    : defaultApiUrl;
   const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
   const apiKeyFromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('quiz-api-key') : null;
-  
+
   const CONFIG = {
     channelName: 'quiz-control',
-    apiUrl: 'http://localhost:3000',
+    apiUrl,
     apiKey: isDev ? '' : (apiKeyFromUrl || apiKeyFromStorage || ''),
     pollInterval: 500, // 500ms pour OBS
     defaultTimerDuration: 30, // secondes
@@ -633,8 +639,8 @@
       }
       
       // Fallback vers chemin relatif si API non disponible
-      const audioUrl = CONFIG.apiUrl && CONFIG.apiUrl !== 'http://localhost:3000'
-        ? `${CONFIG.apiUrl}/overlay/audio/${soundFile}`
+      const audioUrl = !CONFIG.isDevelopment
+        ? `${window.location.origin}/overlay/audio/${soundFile}`
         : `audio/${soundFile}`;
       
       const audio = new Audio(audioUrl);
@@ -674,8 +680,8 @@
   function playTimerSound() {
     try {
       // Fallback vers chemin relatif si API non disponible
-      const audioUrl = CONFIG.apiUrl && CONFIG.apiUrl !== 'http://localhost:3000'
-        ? `${CONFIG.apiUrl}/overlay/audio/30secondes.wav`
+      const audioUrl = !CONFIG.isDevelopment
+        ? `${window.location.origin}/overlay/audio/30secondes.wav`
         : `audio/30secondes.wav`;
       
       state.timerAudio = new Audio(audioUrl);

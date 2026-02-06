@@ -8,9 +8,18 @@
   // ========================
   // CONFIG & CONSTANTS
   // ========================
+  // Permettre de forcer l'URL de l'API (ex. déploiement Fly.io : ?apiBase=https://ton-app.fly.dev)
+  const urlParams = new URLSearchParams(window.location.search);
+  const apiBaseFromUrl = urlParams.get('apiBase') || urlParams.get('api');
+  const origin = window.location.origin;
+  const defaultApiUrl = origin + '/api';
+  const apiUrl = apiBaseFromUrl
+    ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
+    : defaultApiUrl;
+
   const CONFIG = {
     channelName: 'quiz-control',
-    apiUrl: 'http://localhost:3000',
+    apiUrl,
     // En développement, pas de clé API nécessaire
     apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
       ? '' 
