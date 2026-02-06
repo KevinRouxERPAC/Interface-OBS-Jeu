@@ -69,13 +69,15 @@ Le projet est prêt pour un déploiement sur [Fly.io](https://fly.io) (pas de mi
    ```
    Remplacez `votre-app` par le nom de votre application Fly (visible dans `fly.toml` ou avec `fly status`).
 
-4. **Optionnel – Google Sheets**  
-   Si vous utilisez Google Sheets pour les questions :
+4. **Google Sheets (obligatoire si vous utilisez un Sheet)**  
+   Sur Fly.io le fichier `.env` n’est pas déployé. Pour que les questions viennent de Google Sheets, définissez les **secrets** suivants (sinon l’app utilisera les JSON locaux dans `data/`) :
    ```bash
-   fly secrets set GOOGLE_SHEETS_ID="..."
-   fly secrets set GOOGLE_SERVICE_ACCOUNT_EMAIL="..."
-   fly secrets set GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   fly secrets set GOOGLE_SHEETS_ID="votre_id_sheet"
+   fly secrets set GOOGLE_SERVICE_ACCOUNT_EMAIL="votre-compte@projet.iam.gserviceaccount.com"
+   fly secrets set GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\nVOTRE_CLE_SUR_UNE_LIGNE_AVEC_\n_POUR_LES_RETOURS_CHARIOT\n-----END PRIVATE KEY-----\n"
    ```
+   Pour la clé privée : utilisez la même valeur que dans votre `.env` (avec des `\n` littéraux pour les retours à la ligne). Sous PowerShell, vous pouvez mettre la valeur entre guillemets simples pour éviter l’interprétation des échappements. Après avoir défini les secrets, redéployez (`fly deploy`).  
+   Pour vérifier que le serveur voit bien la config : ouvrez `https://votre-app.fly.dev/api/health` et regardez si `sheetsConfigured` est `true`.
 
 ### Déploiements suivants
 

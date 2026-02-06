@@ -51,6 +51,13 @@ function validate() {
   if (!config.allowedOrigins.length) {
     config.allowedOrigins = ['http://localhost:3000'];
   }
+  // Sur Fly.io, autoriser l'URL de l'app par défaut si ALLOWED_ORIGINS n'a pas été défini
+  if (config.isProduction && process.env.FLY_APP_NAME) {
+    const flyOrigin = `https://${process.env.FLY_APP_NAME}.fly.dev`;
+    if (!config.allowedOrigins.includes(flyOrigin)) {
+      config.allowedOrigins.push(flyOrigin);
+    }
+  }
 }
 
 validate();
