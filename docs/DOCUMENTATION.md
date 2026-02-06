@@ -637,7 +637,7 @@ npm run dev
 
 #### Architecture
 - ✅ **Serveur unifié à la racine** : `server.js` et `package.json` à la racine du projet
-- ✅ **Déploiement Render.com** : `npm install` + `npm start` pour déployer en Web Service Node.js
+- ✅ **Déploiement Fly.io** : `fly launch` puis `fly deploy` (voir README), ou `npm install` + `npm start` en local
 - ✅ API montée sous `/api` (health check : `/api/health`, commandes : `/api/command`, etc.)
 - ✅ Fichier `.env` à la racine (plus dans `api/`)
 - ✅ Scripts Windows/Unix et Docker mis à jour pour la racine

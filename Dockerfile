@@ -11,12 +11,12 @@ RUN npm ci --only=production
 # Copier tout le projet
 COPY . ./
 
-# Health check (utilise /api/health maintenant)
+# Health check (utilise /api/health)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 8080) + '/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
-# Exposer le port
-EXPOSE 3000
+# Port utilisé par Fly.io (ou 3000 en local)
+EXPOSE 8080
 
 # Lancer le serveur
 CMD ["npm", "start"]

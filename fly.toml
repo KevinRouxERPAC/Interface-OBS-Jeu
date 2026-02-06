@@ -1,0 +1,23 @@
+# Configuration Fly.io - Interface OBS Jeu
+# Déploiement : fly launch (première fois) puis fly deploy
+
+app = "interface-obs-jeu"
+
+[build]
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    path = "/api/health"
+    grace_period = "10s"
