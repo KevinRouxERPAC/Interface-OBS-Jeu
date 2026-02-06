@@ -120,9 +120,13 @@ router.use((err, req, res, next) => {
 // Servir les données statiques sous /api/data (overlay et admin sont servis par le serveur racine)
 router.use('/data', express.static(path.join(__dirname, '..', 'data')));
 
-// Health check (publique)
+// Health check (publique) — indique si Google Sheets est configuré (sans exposer de secret)
 router.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    sheetsConfigured: Boolean(sheetId && saEmail && saKey)
+  });
 });
 
 // Arrêt du serveur - PROTÉGÉ par API Key (ferme le serveur HTTP racine si fourni)
