@@ -1,23 +1,31 @@
-# Configuration Fly.io - Interface OBS Jeu
-# Déploiement : fly launch (première fois) puis fly deploy
+# fly.toml app configuration file generated for interface-obs-jeu-misty-wind-3670 on 2026-02-06T19:25:32+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "interface-obs-jeu"
+app = 'interface-obs-jeu-misty-wind-3670'
+primary_region = 'cdg'
 
 [build]
 
 [env]
-  PORT = "8080"
-  NODE_ENV = "production"
+  NODE_ENV = 'production'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
   [[http_service.checks]]
-    interval = "30s"
-    timeout = "5s"
-    path = "/api/health"
-    grace_period = "10s"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    path = '/api/health'
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
