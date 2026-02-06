@@ -1,0 +1,29 @@
+# Dépendances et fichiers de dev
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+
+# Git et IDE
+.git
+.gitignore
+.cursorignore
+.vscode
+.idea
+
+# Documentation (non nécessaire dans l’image)
+docs
+*.md
+
+# Scripts et lanceurs locaux (inutiles en production)
+scripts
+*.bat
+*.ps1
+*.sh
+
+# Fichiers de projet inutiles au runtime
+fly.toml
+.dockerignore
+Dockerfile
+docker-compose.yml

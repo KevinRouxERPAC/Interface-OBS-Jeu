@@ -1,7 +1,7 @@
 {
   "name": "interface-obs-jeu",
   "version": "1.0.0",
-  "description": "Interface OBS Jeu - overlay quiz et admin, déployable sur Render",
+  "description": "Interface OBS Jeu - overlay quiz et admin, déployable sur Fly.io",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

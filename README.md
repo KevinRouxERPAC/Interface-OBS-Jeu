@@ -2,177 +2,133 @@
 
 Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questions, le timer et la révélation des réponses. Compatible avec une source navigateur OBS (fond transparent).
 
-> **🆕 v1.1 - Améliorations** : Sécurité renforcée (CORS + API Key), architecture refactorisée, logging centralisé, validation des données, documentation complète.
+> **🆕 v1.1** – Sécurité (CORS + API Key), déploiement Fly.io.
 
 ## 📚 Documentation
 
 - **[📖 Documentation complète](./docs/DOCUMENTATION.md)** – Vue d’ensemble, API, configuration, dépannage
-- **[🔒 Sécurité et clé API](./docs/SECURITE_API_KEY.md)** – Pourquoi et comment configurer la clé API en production
+- **[🔒 Sécurité et clé API](./docs/SECURITE_API_KEY.md)** – Configurer la clé API en production
 
 ## Structure
 
 ```
 Interface OBS Jeu/
-├── server.js           # Serveur Express unifié (racine)
-├── package.json        # Dépendances et scripts npm (racine)
-├── DEMARRER.bat        # Lancement simple (Windows) – LiveUpdate + serveur + admin
-├── ARRETER.bat         # Arrêt du serveur (Windows)
-├── admin/              # Panneau de contrôle (ouvrir dans un navigateur)
+├── server.js           # Serveur Express unifié
+├── package.json        # Dépendances et scripts npm
+├── fly.toml            # Configuration déploiement Fly.io
+├── Dockerfile          # Image Docker (utilisée par Fly.io)
+├── admin/              # Panneau de contrôle (navigateur)
 ├── api/                # API backend Node.js (router Express)
 ├── data/               # Données JSON (questions, niveaux, catégories, thèmes)
-├── docs/               # Documentation (DOCUMENTATION.md, SECURITE_API_KEY.md)
-├── overlay/             # Fichiers affichés dans la source navigateur OBS
-└── scripts/            # Scripts organisés par plateforme
-    ├── windows/        # PowerShell et batch (live-update.ps1, launch-server.ps1, start.ps1, etc.)
-    └── unix/           # Bash (live-update.sh, start.sh, stop.sh, etc.)
+├── docs/               # Documentation
+└── overlay/            # Fichiers pour la source navigateur OBS
 ```
 
-## 🚀 Lancer rapidement
-
-### Option 1 : Lanceur simple (Windows - Pour utilisateurs finaux) 🎯
-
-**Double-cliquez sur `DEMARRER.bat`** à la racine du projet.
-
-C'est tout ! Le script :
-- ✅ **LiveUpdate** : récupère les mises à jour depuis `main` (si le projet est un clone Git)
-- ✅ Vérifie automatiquement les prérequis (Node.js)
-- ✅ Installe les dépendances si nécessaire
-- ✅ Configure le projet automatiquement
-- ✅ Démarre le serveur
-- ✅ Ouvre l'interface d'administration dans votre navigateur
-
-### LiveUpdate (mises à jour automatiques)
-
-Lors du lancement (DEMARRER.bat ou `start.ps1` / `start.sh`), le projet vérifie s'il est un **clone Git** avec une remote `origin`. Si oui, il exécute `git fetch origin main` puis `git pull origin main` avant de démarrer le serveur. Ainsi, quand vous poussez des mises à jour sur la branche `main`, votre streamer (ou tout utilisateur ayant cloné le dépôt) reçoit les mises à jour au prochain lancement.
-
-**Prérequis pour le LiveUpdate :**
-- Projet obtenu via `git clone <url>` (pas un ZIP téléchargé)
-- Git installé sur la machine
-- Remote `origin` pointant vers votre dépôt (GitHub, GitLab, etc.)
-
-Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lancement continue normalement sans mise à jour.
-
-### Option 2 : Arrêter le serveur (Windows)
-
-Double-cliquez sur **`ARRETER.bat`** à la racine du projet pour arrêter proprement le serveur.
-
-### Option 3 : Application graphique (Windows)
-
-**Double-cliquez sur `scripts/windows/LancerApp.bat`** pour ouvrir l'application de gestion avec interface graphique.
-
-L'application permet de :
-- ✅ Démarrer/arrêter le serveur en un clic
-- ✅ Voir le statut en temps réel
-- ✅ Ouvrir directement l'admin et l'overlay
-- ✅ Vérifier automatiquement l'état du serveur
-
-📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
-
-### Option 4 : Scripts en ligne de commande
-
-**Windows :**
-```powershell
-.\scripts\windows\start.ps1
-```
-
-**Linux/Mac :**
-```bash
-chmod +x scripts/unix/*.sh
-./scripts/unix/start.sh
-```
-
-Puis ouvrez :
-- `http://localhost:3000/overlay` dans OBS (Browser Source)
-- `http://localhost:3000/admin` dans votre navigateur
-
-**Alternative simple (recommandé pour Render.com) :**
-```bash
-npm install
-npm start
-```
-
-**Arrêter :**
-```powershell
-.\scripts\windows\stop.ps1    # Windows
-./scripts/unix/stop.sh         # Linux/Mac
-```
-
-📖 **[Voir la documentation complète →](./docs/DOCUMENTATION.md)**
-
-### Option 5 : Sans serveur (mode local)
-
-1. Ouvrez `overlay/index.html` dans OBS via une Browser Source (URL file://).
-2. Ouvrez `admin/admin.html` dans votre navigateur pour piloter l'overlay.
-
-Communication overlay/admin : `BroadcastChannel` (même machine / même origine). Un fallback `localStorage` est présent si BroadcastChannel n'est pas disponible.
-
-## Option API Node.js
-
-Le projet utilise maintenant un serveur Node.js unifié à la racine :
+## 🚀 Lancer en local
 
 ```bash
 npm install
 npm start
 ```
 
-Le serveur démarre sur le port 3000 (ou celui défini dans `PORT`) et expose :
-- `/overlay` - Interface overlay pour OBS
-- `/admin` - Panneau d'administration
-- `/api` - API REST (endpoints: `/api/random`, `/api/health`, etc.)
+Le serveur écoute sur le port 3000 (ou la variable `PORT`). Puis :
 
-L'endpoint `GET /api/random` renvoie une question tirée de `data/questions.json` ou Google Sheets si configuré.
+- **OBS** : ajoutez une source *Browser* avec l’URL `http://localhost:3000/overlay`
+- **Admin** : ouvrez `http://localhost:3000/admin` dans votre navigateur
 
-### Connexion Google Sheets (service account)
+En production (Fly.io), le port est 8080 et l’URL sera celle de votre app (ex. `https://interface-obs-jeu.fly.dev`).
 
-1) Dans Google Cloud Console :
-- Créez un projet, activez "Google Sheets API".
-- Créez un compte de service, générez une clé JSON.
-- Notez `client_email` et `private_key`.
+## ☁️ Déploiement sur Fly.io
 
-2) Dans le Sheet : partagez le document avec l'email du compte de service en "Lecteur".
+Le projet est prêt pour un déploiement sur [Fly.io](https://fly.io) (pas de mise en veille, bonne réactivité).
 
-3) Structure attendue du Google Sheets (5 onglets) :
-- **Questions** : ID, IDTheme, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question
-- **Theme** : ID, IDCategory, IDLevel, Name, Description
-- **Category** : ID, Name, Start_Date, End_Date, IDMatiere
-- **Level** : ID, Libel
-- **Matiere** : ID, Nom
+### Prérequis
 
-4) Variables d'environnement à définir (ou un fichier `.env` chargé avant `node server.js`) :
-- `GOOGLE_SHEETS_ID` : l'ID du Sheet (entre `/d/` et `/edit`).
-- `GOOGLE_SHEETS_QUESTIONS_RANGE` : par défaut `Questions!A2:I`.
-- `GOOGLE_SHEETS_THEMES_RANGE` : par défaut `Theme!A2:E`.
-- `GOOGLE_SHEETS_CATEGORIES_RANGE` : par défaut `Category!A2:E`.
-- `GOOGLE_SHEETS_LEVELS_RANGE` : par défaut `Level!A2:B`.
-- `GOOGLE_SHEETS_MATIERES_RANGE` : par défaut `Matiere!A2:B`.
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` : `client_email` de la clé JSON.
-- `GOOGLE_SERVICE_ACCOUNT_KEY` : `private_key` avec les sauts de ligne échappés (`\n`).
+- Compte [Fly.io](https://fly.io)
+- [flyctl](https://fly.io/docs/hands-on/install-flyctl/) installé
 
-5) Lancement :
+### Première fois
+
+1. **Connexion**
+   ```bash
+   fly auth login
+   ```
+
+2. **Création de l’app et déploiement**
+   ```bash
+   fly launch
+   ```
+   - Conservez le nom d’app proposé ou choisissez-en un (ex. `interface-obs-jeu`).
+   - Ne créez pas de base Postgres si demandé.
+   - Le premier déploiement se lance après la configuration.
+
+3. **Variables d’environnement obligatoires**
+   ```bash
+   fly secrets set API_KEY="votre-cle-secrete-forte"
+   fly secrets set ALLOWED_ORIGINS="https://votre-app.fly.dev,https://votre-app.fly.dev/overlay,https://votre-app.fly.dev/admin"
+   ```
+   Remplacez `votre-app` par le nom de votre application Fly (visible dans `fly.toml` ou avec `fly status`).
+
+4. **Optionnel – Google Sheets**  
+   Si vous utilisez Google Sheets pour les questions :
+   ```bash
+   fly secrets set GOOGLE_SHEETS_ID="..."
+   fly secrets set GOOGLE_SERVICE_ACCOUNT_EMAIL="..."
+   fly secrets set GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   ```
+
+### Déploiements suivants
 
 ```bash
-# Exemple PowerShell
-$env:GOOGLE_SHEETS_ID="<votre_sheet_id>"
-$env:GOOGLE_SERVICE_ACCOUNT_EMAIL="<service_account@project.iam.gserviceaccount.com>"
-$env:GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-node server.js
+fly deploy
 ```
 
-Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet** (et l’API renvoie une erreur si le Sheet est indisponible). Sans configuration Sheets, l’API utilise `data/questions.json`.
+### URLs après déploiement
+
+- **Overlay OBS** : `https://<votre-app>.fly.dev/overlay`
+- **Admin** : `https://<votre-app>.fly.dev/admin`
+- **API** : `https://<votre-app>.fly.dev/api` (ex. `/api/health`, `/api/random`)
+
+Pensez à mettre à jour `ALLOWED_ORIGINS` si vous changez de domaine ou d’app.
+
+## Option : sans serveur (mode local uniquement)
+
+1. Ouvrez `overlay/index.html` dans OBS (source Browser, URL en `file://`).
+2. Ouvrez `admin/admin.html` dans le navigateur.
+
+Communication overlay/admin via `BroadcastChannel` (même machine / même origine). Fallback `localStorage` si besoin.
+
+## API Node.js
+
+Le serveur expose notamment :
+
+- `/overlay` – Interface overlay pour OBS
+- `/admin` – Panneau d’administration
+- `/api` – API REST (`/api/random`, `/api/health`, etc.)
+
+`GET /api/random` renvoie une question depuis `data/questions.json` ou depuis Google Sheets si configuré.
+
+### Connexion Google Sheets (compte de service)
+
+1. **Google Cloud Console** : créez un projet, activez « Google Sheets API », créez un compte de service et récupérez une clé JSON (`client_email`, `private_key`).
+2. **Sheet** : partagez le document avec l’email du compte de service en « Lecteur ».
+3. **Structure** : onglets **Questions**, **Theme**, **Category**, **Level**, **Matiere** (détails dans [DOCUMENTATION.md](./docs/DOCUMENTATION.md)).
+4. **Variables d’environnement** (ou `.env` en local) : `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_KEY`, et optionnellement les plages (`GOOGLE_SHEETS_QUESTIONS_RANGE`, etc.). Voir `.env.example`.
+
+Sans Google Sheets, l’API utilise `data/questions.json`.
 
 ## Conseils OBS
 
-- Activez "Custom CSS" transparent si nécessaire, mais le fond est déjà transparent.
-- Désactivez "Use hardware acceleration" si vous constatez des problèmes de rendu avec certaines cartes.
-- Résolution conseillée de la source : 1920x200 pour un bandeau bas, mais le layout est responsive.
+- Fond déjà transparent ; « Custom CSS » transparent si besoin.
+- Désactiver « Use hardware acceleration » en cas de souci de rendu.
+- Résolution conseillée de la source : 1920×200 (bandeau bas), layout responsive.
 
 ## Personnalisation
 
-- Ajustez les couleurs et animations dans `overlay/style.css`.
-- Changez la durée par défaut dans `overlay/script.js` (`DEFAULT_DURATION`).
-- **Base de données (modèle CSV)** : si vous avez des CSV dans `data/exemple/`, régénérez les JSON avec `node scripts/build-data-from-example.js` (l’API normalise ensuite automatiquement en format “quiz”).
+- Couleurs et animations : `overlay/style.css`
+- Durée par défaut : `overlay/script.js` (`DEFAULT_DURATION`)
 
 ## Limitations connues
 
-- BroadcastChannel nécessite l'ouverture overlay/admin depuis la même origine. Sinon utilisez l'API et servez les deux via le même serveur local.
-- Pas de persistance des états entre rechargements : l'admin redemande l'état à l'ouverture.
+- Overlay et admin doivent être servis depuis la même origine (ou configurer CORS / `ALLOWED_ORIGINS`).
+- Pas de persistance des états entre rechargements ; l’admin redemande l’état à l’ouverture.

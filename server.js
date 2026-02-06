@@ -16,7 +16,7 @@ app.use("/api", api.router);
 
 // Page d'accueil
 app.get("/", (req, res) => {
-  res.send("Interface OBS Jeu - Serveur Render OK");
+  res.send("Interface OBS Jeu");
 });
 
 const server = app.listen(PORT, () => {
