@@ -43,7 +43,7 @@ desktop.ini
 
 # PID files
 **/.server.pid
-api/.server.pid
+.server.pid
 
 # Build outputs
 dist/

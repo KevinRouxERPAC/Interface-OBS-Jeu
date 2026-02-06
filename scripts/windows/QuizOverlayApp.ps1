@@ -6,7 +6,7 @@ Add-Type -AssemblyName System.Drawing
 
 # Configuration
 $script:projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$script:pidFile = Join-Path $script:projectRoot "api\.server.pid"
+$script:pidFile = Join-Path $script:projectRoot ".server.pid"
 $script:apiUrl = "http://localhost:3000"
 $script:statusCheckTimer = $null
 $script:serverProcess = $null
@@ -137,7 +137,7 @@ function Update-Status {
                 
                 # Tester si le serveur répond
                 try {
-                    $response = Invoke-WebRequest -Uri "$script:apiUrl/health" -TimeoutSec 2 -ErrorAction Stop
+                    $response = Invoke-WebRequest -Uri "$script:apiUrl/api/health" -TimeoutSec 2 -ErrorAction Stop
                     $statusText += "Health: [OK] OK`n"
                     $statusText += "URL: $script:apiUrl`n"
                 } catch {
@@ -181,8 +181,6 @@ function Update-Status {
 
 # Fonction pour démarrer le serveur
 function Start-Server {
-    $apiDir = Join-Path $script:projectRoot "api"
-    
     # Vérifier si le serveur est déjà en cours d'exécution
     if (Test-Path $script:pidFile) {
         $oldPid = (Get-Content $script:pidFile -Raw).Trim()
@@ -227,11 +225,11 @@ function Start-Server {
     }
     
     # Installer les dépendances si nécessaire
-    if (-not (Test-Path (Join-Path $apiDir "node_modules"))) {
+    if (-not (Test-Path (Join-Path $script:projectRoot "node_modules"))) {
         $txtInfo.Text = "Installation des dépendances en cours...`nCela peut prendre quelques instants."
         $form.Refresh()
         
-        Push-Location $apiDir
+        Push-Location $script:projectRoot
         $installOutput = npm install 2>&1
         Pop-Location
         
@@ -263,13 +261,13 @@ function Start-Server {
     }
     
     # Démarrer le serveur directement avec Node.js en arrière-plan
-    Push-Location $apiDir
+    Push-Location $script:projectRoot
     $env:NODE_ENV = "production"
     
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = "node"
     $processInfo.Arguments = "server.js"
-    $processInfo.WorkingDirectory = $apiDir
+    $processInfo.WorkingDirectory = $script:projectRoot
     $processInfo.UseShellExecute = $false
     $processInfo.CreateNoWindow = $true
     $processInfo.RedirectStandardOutput = $false

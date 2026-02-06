@@ -5,7 +5,7 @@
 # Remonter à la racine du projet depuis scripts/unix/
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PID_FILE="$PROJECT_ROOT/api/.server.pid"
+PID_FILE="$PROJECT_ROOT/.server.pid"
 
 echo "📊 Statut du serveur Quiz Overlay API"
 echo ""
@@ -26,7 +26,7 @@ if [ -f "$PID_FILE" ]; then
         fi
         
         # Tester si le serveur répond
-        if curl -s -f -m 2 http://localhost:3000/health > /dev/null 2>&1; then
+        if curl -s -f -m 2 http://localhost:3000/api/health > /dev/null 2>&1; then
             echo "   Health: ✅ OK"
         else
             echo "   Health: ⚠️  Ne répond pas"

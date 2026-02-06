@@ -6,7 +6,6 @@ param(
 
 # Remonter à la racine du projet depuis scripts/windows/
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$apiDir = Join-Path $projectRoot "api"
 
 # LiveUpdate : récupérer les mises à jour depuis main avant de démarrer
 $liveUpdateScript = Join-Path $PSScriptRoot "live-update.ps1"
@@ -14,7 +13,7 @@ if (Test-Path $liveUpdateScript) {
     & $liveUpdateScript
 }
 
-Push-Location $apiDir
+Push-Location $projectRoot
 
 # Charger ou créer .env
 if (-not (Test-Path ".env")) {
@@ -44,7 +43,7 @@ if ($Mode -eq "prod" -or $Mode -eq "production") {
     $env:NODE_ENV = "production"
     
     # Vérifier si le serveur est déjà en cours d'exécution
-    $pidFile = Join-Path $apiDir ".server.pid"
+    $pidFile = Join-Path $projectRoot ".server.pid"
     if (Test-Path $pidFile) {
         $oldPid = (Get-Content $pidFile -Raw).Trim()
         try {
@@ -64,7 +63,7 @@ if ($Mode -eq "prod" -or $Mode -eq "production") {
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = "node"
     $processInfo.Arguments = "server.js"
-    $processInfo.WorkingDirectory = $PWD
+    $processInfo.WorkingDirectory = $projectRoot
     $processInfo.UseShellExecute = $false
     $processInfo.CreateNoWindow = $true
     $processInfo.RedirectStandardOutput = $true

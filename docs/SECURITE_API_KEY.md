@@ -7,14 +7,14 @@ Sans clé API en production, **n'importe qui sur Internet** pourrait :
 ### 1. **Arrêter votre serveur** 🛑
 ```bash
 # N'importe qui pourrait faire :
-curl -X POST http://votre-serveur.com:3000/shutdown
+curl -X POST http://votre-serveur.com:3000/api/shutdown
 ```
 → Votre serveur s'arrête immédiatement, votre stream est interrompu !
 
 ### 2. **Envoyer des commandes malveillantes** ⚠️
 ```bash
 # Quelqu'un pourrait envoyer des commandes à votre overlay :
-curl -X POST http://votre-serveur.com:3000/command \
+curl -X POST http://votre-serveur.com:3000/api/command \
   -H "Content-Type: application/json" \
   -d '{"type": "LOAD_QUESTION", "question": {...}}'
 ```
@@ -23,7 +23,7 @@ curl -X POST http://votre-serveur.com:3000/command \
 ### 3. **Modifier l'état de l'overlay** 🔧
 ```bash
 # Quelqu'un pourrait modifier l'état :
-curl -X POST http://votre-serveur.com:3000/state \
+curl -X POST http://votre-serveur.com:3000/api/state \
   -H "Content-Type: application/json" \
   -d '{"question": null, "timer": 0}'
 ```
@@ -32,7 +32,7 @@ curl -X POST http://votre-serveur.com:3000/state \
 ### 4. **Lire les commandes sensibles** 👁️
 ```bash
 # Quelqu'un pourrait espionner vos commandes :
-curl http://votre-serveur.com:3000/command
+curl http://votre-serveur.com:3000/api/command
 ```
 → Des personnes pourraient voir ce que vous préparez avant que ce soit affiché !
 
@@ -46,11 +46,11 @@ Ces endpoints **nécessitent** la clé API en production :
 
 | Endpoint | Méthode | Protection | Risque sans protection |
 |----------|---------|-----------|------------------------|
-| `/shutdown` | POST | 🔒 API Key | Arrêt du serveur |
-| `/command` | POST | 🔒 API Key | Envoi de commandes malveillantes |
-| `/command` | GET | 🔒 API Key | Espionnage des commandes |
-| `/state` | POST | 🔒 API Key | Modification de l'état |
-| `/state` | GET | 🔒 API Key | Lecture de l'état |
+| `/api/shutdown` | POST | 🔒 API Key | Arrêt du serveur |
+| `/api/command` | POST | 🔒 API Key | Envoi de commandes malveillantes |
+| `/api/command` | GET | 🔒 API Key | Espionnage des commandes |
+| `/api/state` | POST | 🔒 API Key | Modification de l'état |
+| `/api/state` | GET | 🔒 API Key | Lecture de l'état |
 
 ### Endpoints publics (sans protection)
 
@@ -58,19 +58,19 @@ Ces endpoints restent accessibles à tous (c'est normal) :
 
 | Endpoint | Méthode | Protection | Pourquoi public ? |
 |----------|---------|-----------|-------------------|
-| `/health` | GET | 🌐 Public | Vérification que le serveur fonctionne |
+| `/api/health` | GET | 🌐 Public | Vérification que le serveur fonctionne |
 | `/overlay` | GET | 🌐 Public | Affichage dans OBS (lecture seule) |
 | `/admin` | GET | 🌐 Public | Interface admin (mais les actions nécessitent la clé) |
-| `/random` | GET | 🔒 API Key | Questions sensibles |
-| `/levels` | GET | 🔒 API Key | Données sensibles |
-| `/categories` | GET | 🔒 API Key | Données sensibles |
-| `/themes` | GET | 🔒 API Key | Données sensibles |
+| `/api/random` | GET | 🔒 API Key | Questions sensibles |
+| `/api/levels` | GET | 🔒 API Key | Données sensibles |
+| `/api/categories` | GET | 🔒 API Key | Données sensibles |
+| `/api/themes` | GET | 🔒 API Key | Données sensibles |
 
 ## 🔐 Comment ça fonctionne ?
 
 ### 1. Configuration
 
-Dans votre fichier `api/.env` :
+Dans votre fichier `.env` à la racine du projet :
 ```env
 NODE_ENV=production
 API_KEY=ma-super-cle-secrete-12345
@@ -86,7 +86,7 @@ const headers = {
   'X-API-Key': 'ma-super-cle-secrete-12345'
 };
 
-fetch('http://localhost:3000/command', {
+fetch('http://localhost:3000/api/command', {
   method: 'POST',
   headers: headers,
   body: JSON.stringify(command)
@@ -98,7 +98,7 @@ fetch('http://localhost:3000/command', {
 Le serveur vérifie la clé avant d'autoriser l'accès :
 
 ```javascript
-// Dans api/server.js
+// Dans api/server.js (router monté sous /api)
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
   

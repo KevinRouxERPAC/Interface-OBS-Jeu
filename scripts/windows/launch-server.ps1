@@ -3,18 +3,17 @@
 
 # Remonter à la racine du projet depuis scripts/windows/
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$apiDir = Join-Path $projectRoot "api"
 
 # LiveUpdate : récupérer les mises à jour depuis main avant de démarrer
 $liveUpdateScript = Join-Path $PSScriptRoot "live-update.ps1"
 if (Test-Path $liveUpdateScript) {
     & $liveUpdateScript
 }
-$pidFile = Join-Path $apiDir ".server.pid"
+$pidFile = Join-Path $projectRoot ".server.pid"
 $apiUrl = "http://localhost:3000"
-$adminUrl = "$apiUrl/admin/admin.html"
+$adminUrl = "$apiUrl/admin"
 
-Push-Location $apiDir
+Push-Location $projectRoot
 
 # Vérifier si le serveur est déjà en cours d'exécution
 if (Test-Path $pidFile) {
@@ -34,7 +33,7 @@ if (Test-Path $pidFile) {
 }
 
 # Vérifier le fichier .env
-$envFile = Join-Path $apiDir ".env"
+$envFile = Join-Path $projectRoot ".env"
 if (-not (Test-Path $envFile)) {
     $envExample = Join-Path $projectRoot ".env.example"
     if (Test-Path $envExample) {
@@ -81,7 +80,7 @@ $env:NODE_ENV = "development"
 $processInfo = New-Object System.Diagnostics.ProcessStartInfo
 $processInfo.FileName = "node"
 $processInfo.Arguments = "server.js"
-$processInfo.WorkingDirectory = $apiDir
+$processInfo.WorkingDirectory = $projectRoot
 $processInfo.UseShellExecute = $false
 $processInfo.CreateNoWindow = $true
 $processInfo.RedirectStandardOutput = $false
@@ -107,7 +106,7 @@ $serverReady = $false
 while (-not $serverReady -and $attempt -lt $maxAttempts) {
     Start-Sleep -Seconds 1
     try {
-        $response = Invoke-WebRequest -Uri "$apiUrl/health" -TimeoutSec 2 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$apiUrl/api/health" -TimeoutSec 2 -ErrorAction Stop
         if ($response.StatusCode -eq 200) {
             $serverReady = $true
             Write-Host "[OK] Serveur pret!" -ForegroundColor Green

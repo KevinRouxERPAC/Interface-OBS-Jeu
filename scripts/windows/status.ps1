@@ -2,7 +2,7 @@
 
 # Remonter à la racine du projet depuis scripts/windows/
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$pidFile = Join-Path $projectRoot "api\.server.pid"
+$pidFile = Join-Path $projectRoot ".server.pid"
 
 Write-Host "[STATUT] Statut du serveur Quiz Overlay API" -ForegroundColor Cyan
 Write-Host ""
@@ -22,7 +22,7 @@ if (Test-Path $pidFile) {
             
             # Tester si le serveur répond
             try {
-                $response = Invoke-WebRequest -Uri "http://localhost:3000/health" -TimeoutSec 2 -ErrorAction Stop
+                $response = Invoke-WebRequest -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
                 Write-Host "   Health: [OK] OK" -ForegroundColor Green
             } catch {
                 Write-Host "   Health: [ATTENTION] Ne repond pas" -ForegroundColor Yellow
