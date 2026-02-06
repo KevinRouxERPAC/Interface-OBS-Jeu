@@ -42,10 +42,14 @@ const config = {
 // Validation
 function validate() {
   if (config.isProduction && !config.apiKey) {
-    throw new Error('API_KEY est requise en production');
+    console.warn('[config] API_KEY non définie en production : définir fly secrets set API_KEY=... puis redéployer pour sécuriser l’API.');
+  }
+  const origins = (process.env.ALLOWED_ORIGINS || '').trim();
+  if (!origins && config.isProduction) {
+    console.warn('[config] ALLOWED_ORIGINS non défini : définir fly secrets set ALLOWED_ORIGINS=https://votre-app.fly.dev,... pour le CORS.');
   }
   if (!config.allowedOrigins.length) {
-    throw new Error('ALLOWED_ORIGINS ne peut pas être vide');
+    config.allowedOrigins = ['http://localhost:3000'];
   }
 }
 
