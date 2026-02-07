@@ -28,6 +28,13 @@ const { google } = require('googleapis');
 const router = express.Router();
 const logger = new Logger(config.logLevel);
 
+// En-têtes de sécurité (aucune requête en plus)
+router.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
+
 // Référence au serveur HTTP racine (pour route /shutdown)
 let httpServer = null;
 function setServer(s) {
@@ -37,6 +44,8 @@ const questionsPath = path.join(__dirname, '..', 'data', 'questions.json');
 
 let lastCommand = { id: 0, cmd: null, timestamp: 0 };
 let overlayState = { question: null, timer: null, selectedIndex: null, timestamp: 0 };
+const sseClients = []; // { res, key } pour limiter par clé
+const MAX_SSE_PER_KEY = 3; // max de connexions SSE simultanées par clé API
 
 // Configuration CORS sécurisée
 const corsOptions = {
@@ -77,8 +86,8 @@ const limiter = rateLimit({
 // Ces routes sont protégées par API key en production.
 router.use((req, res, next) => {
   const urlPath = req.path || (req.url ? req.url.split('?')[0] : '');
-  const isPollingRoute = urlPath === '/command' || urlPath === '/state';
-  if (isPollingRoute) {
+  const isStreamOrPollRoute = urlPath === '/command' || urlPath === '/command/stream' || urlPath === '/state';
+  if (isStreamOrPollRoute) {
     return next();
   }
   limiter(req, res, next);
@@ -150,9 +159,51 @@ router.post('/command', validateApiKey, (req, res) => {
   }
   lastCommand = { id: lastCommand.id + 1, cmd: req.body, timestamp: Date.now() };
   res.json({ ok: true, id: lastCommand.id });
+  const data = JSON.stringify(lastCommand);
+  sseClients.forEach((entry) => {
+    try {
+      entry.res.write(`data: ${data}\n\n`);
+    } catch (e) {}
+  });
 });
 
-// Lecture des commandes - PROTÉGÉ par API Key
+// Rate limit sur l’ouverture du flux SSE (évite le flood de connexions, pas de requêtes en plus)
+const streamOpenLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: 'Trop de tentatives de connexion au flux.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Flux SSE : l’overlay reçoit les commandes en push (pas de polling)
+// Clé API en query car EventSource ne permet pas d’en-têtes personnalisés
+router.get('/command/stream', streamOpenLimiter, (req, res) => {
+  if (config.isProduction && config.apiKey && req.query.key !== config.apiKey) {
+    return res.status(401).json({ error: 'Clé API invalide ou manquante' });
+  }
+  const key = req.query.key || '';
+  const sameKeyCount = sseClients.filter((e) => e.key === key).length;
+  if (sameKeyCount >= MAX_SSE_PER_KEY) {
+    return res.status(429).json({
+      error: 'Trop de connexions simultanées pour cette clé. Fermez un overlay ou un onglet.'
+    });
+  }
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  const entry = { res, key };
+  sseClients.push(entry);
+  res.write(`data: ${JSON.stringify(lastCommand)}\n\n`);
+  req.on('close', () => {
+    const idx = sseClients.indexOf(entry);
+    if (idx !== -1) sseClients.splice(idx, 1);
+  });
+});
+
+// Lecture des commandes - PROTÉGÉ par API Key (fallback polling)
 router.get('/command', validateApiKey, (_req, res) => {
   res.json(lastCommand);
 });

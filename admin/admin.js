@@ -69,6 +69,8 @@
 
     // Options
     matiereScopeSelect: document.getElementById('matiere-scope'),
+    apiKeyInput: document.getElementById('api-key-input'),
+    btnSaveApiKey: document.getElementById('btn-save-api-key'),
     
     // Grilles
     matieresGrid: document.getElementById('matieres-grid'),
@@ -1068,6 +1070,22 @@
   // ========================
 
   function setupEventListeners() {
+    if (DOM.apiKeyInput && DOM.btnSaveApiKey) {
+      const stored = localStorage.getItem('quiz-api-key');
+      if (stored) DOM.apiKeyInput.value = stored;
+      DOM.btnSaveApiKey.addEventListener('click', () => {
+        const key = (DOM.apiKeyInput.value || '').trim();
+        if (key) {
+          localStorage.setItem('quiz-api-key', key);
+          CONFIG.apiKey = key;
+          logEvent('✓ Clé API enregistrée');
+        } else {
+          localStorage.removeItem('quiz-api-key');
+          CONFIG.apiKey = '';
+          logEvent('Clé API supprimée (mode sans clé)');
+        }
+      });
+    }
     DOM.btnStartSelection.addEventListener('click', startSelection);
     DOM.btnDrawTheme.addEventListener('click', drawTheme);
     DOM.btnLaunchQuestion.addEventListener('click', launchQuestion);

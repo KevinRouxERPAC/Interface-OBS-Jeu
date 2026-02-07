@@ -31,6 +31,14 @@
             <option value="HISTOIRE_ONLY">Uniquement Histoire</option>
           </select>
         </label>
+        <div class="admin-option-row">
+          <span class="admin-option-label">Clé API</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="password" id="api-key-input" class="admin-option-select" placeholder="Même clé que sur le serveur" autocomplete="off" style="flex: 1;">
+            <button type="button" id="btn-save-api-key" class="btn-primary">Enregistrer</button>
+          </div>
+          <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">Requis en production. Définie côté serveur (Fly: <code>fly secrets set API_KEY=...</code>).</p>
+        </div>
       </div>
       
       <!-- Boutons permanents -->

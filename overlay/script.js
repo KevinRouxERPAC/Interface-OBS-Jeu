@@ -128,53 +128,72 @@
       }
     }
 
-    // Polling serveur (PRINCIPAL pour OBS)
-    if (CONFIG.isDevelopment) {
-      console.log('[OVERLAY] Polling serveur chaque', CONFIG.pollInterval, 'ms');
-    }
-    if (CONFIG.apiUrl) {
-      setInterval(pollServer, CONFIG.pollInterval);
+    // Push via SSE : mise à jour dès qu’une commande est envoyée (pas de polling)
+    if (CONFIG.apiUrl && typeof EventSource !== 'undefined') {
+      const streamUrl = CONFIG.apiUrl + '/command/stream' + (CONFIG.apiKey ? '?key=' + encodeURIComponent(CONFIG.apiKey) : '');
+      try {
+        const es = new EventSource(streamUrl);
+        es.onmessage = (ev) => {
+          try {
+            const payload = JSON.parse(ev.data);
+            if (!payload || typeof payload.id !== 'number' || payload.id === 0) return;
+            if (payload.id === state.lastServerCommandId) return;
+            state.lastServerCommandId = payload.id;
+            updateConnectionStatus(true);
+            if (payload.cmd) handleCommand(payload.cmd);
+          } catch (_) {}
+        };
+        es.onerror = () => {
+          updateConnectionStatus(false);
+          es.close();
+          startPollingFallback();
+        };
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] Connexion SSE (push) activée');
+        }
+      } catch (err) {
+        if (CONFIG.isDevelopment) console.warn('[OVERLAY] SSE non disponible, fallback polling:', err);
+        startPollingFallback();
+      }
+    } else {
+      startPollingFallback();
     }
   }
 
-  /**
-   * Récupère les dernières commandes du serveur avec retry logic
-   */
+  let pollingFallbackStarted = false;
+  function startPollingFallback() {
+    if (pollingFallbackStarted || !CONFIG.apiUrl) return;
+    pollingFallbackStarted = true;
+    if (CONFIG.isDevelopment) console.log('[OVERLAY] Polling serveur chaque', CONFIG.pollInterval, 'ms');
+    setInterval(pollServer, CONFIG.pollInterval);
+  }
+
   let retryCount = 0;
   async function pollServer() {
     try {
       const url = `${CONFIG.apiUrl}/command?t=${Date.now()}`;
       const headers = CONFIG.apiKey ? { 'X-API-Key': CONFIG.apiKey } : {};
       const res = await fetch(url, { headers, cache: 'no-store' });
-      
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          logErrorThrottled(`Authentification échouée (${res.status})`);
-        } else {
-          logErrorThrottled(`Serveur inaccessible (${res.status})`);
-        }
+        if (res.status === 401 || res.status === 403) logErrorThrottled(`Authentification échouée (${res.status})`);
+        else logErrorThrottled(`Serveur inaccessible (${res.status})`);
         updateConnectionStatus(false);
         retryCount++;
         return;
       }
-      
       const payload = await res.json();
       if (!payload || typeof payload.id !== 'number' || payload.id === 0) return;
       if (payload.id === state.lastServerCommandId) return;
-      
       state.lastServerCommandId = payload.id;
       updateConnectionStatus(true);
-      retryCount = 0; // Reset retry count on success
+      retryCount = 0;
       handleCommand(payload.cmd);
     } catch (err) {
       retryCount++;
       logErrorThrottled(`Serveur déconnecté: ${err.message}`);
       updateConnectionStatus(false);
-      
-      // Retry automatique avec backoff exponentiel
       if (retryCount <= CONFIG.maxRetries && CONFIG.apiUrl) {
-        const delay = CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1);
-        setTimeout(() => pollServer(), delay);
+        setTimeout(() => pollServer(), CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1));
       }
     }
   }
@@ -229,10 +248,6 @@
     const commandStep = FLOW_STEP_BY_CMD[cmd.type];
     const isReset = cmd.type === 'START_SELECTION';
     const wouldRevert = commandStep !== undefined && commandStep < state.flowStep && !isReset;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'overlay/script.js:handleCommand',message:'cmd received',data:{cmdType:cmd.type,flowStep:state.flowStep,commandStep:commandStep ?? 'n/a',wouldRevert},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     if (wouldRevert) {
       // Ne jamais revenir à un écran précédent (commande ignorée)
