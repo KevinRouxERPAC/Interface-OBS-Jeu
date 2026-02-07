@@ -169,18 +169,26 @@
   }
 
   let retryCount = 0;
+  let lastAuthError = false;
   async function pollServer() {
     try {
       const url = `${CONFIG.apiUrl}/command?t=${Date.now()}`;
       const headers = CONFIG.apiKey ? { 'X-API-Key': CONFIG.apiKey } : {};
       const res = await fetch(url, { headers, cache: 'no-store' });
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) logErrorThrottled(`Authentification échouée (${res.status})`);
-        else logErrorThrottled(`Serveur inaccessible (${res.status})`);
-        updateConnectionStatus(false);
+        if (res.status === 401 || res.status === 403) {
+          lastAuthError = true;
+          logErrorThrottled(`Authentification échouée (${res.status})`);
+          updateConnectionStatus(false, 'auth');
+        } else {
+          lastAuthError = false;
+          logErrorThrottled(`Serveur inaccessible (${res.status})`);
+          updateConnectionStatus(false);
+        }
         retryCount++;
         return;
       }
+      lastAuthError = false;
       const payload = await res.json();
       if (!payload || typeof payload.id !== 'number' || payload.id === 0) return;
       if (payload.id === state.lastServerCommandId) return;
@@ -213,15 +221,22 @@
 
   /**
    * Met à jour l'indicateur de connexion
+   * @param {boolean} connected
+   * @param {string} [reason] - 'auth' si 401/403 (clé API manquante ou invalide)
    */
-  function updateConnectionStatus(connected) {
+  function updateConnectionStatus(connected, reason) {
     if (!DOM.connectionStatus) return;
     state.lastAdminPing = Date.now();
     
+    DOM.connectionStatus.style.display = 'flex';
     DOM.connectionStatus.classList.toggle('connected', connected);
     DOM.connectionStatus.classList.toggle('disconnected', !connected);
     if (DOM.connectionText) {
-      DOM.connectionText.textContent = connected ? 'Synchronisé' : 'Non synchronisé';
+      if (reason === 'auth') {
+        DOM.connectionText.textContent = 'Clé API manquante — Ajoutez ?apiKey=... à l\'URL';
+      } else {
+        DOM.connectionText.textContent = connected ? 'Synchronisé' : 'Non synchronisé';
+      }
     }
   }
 

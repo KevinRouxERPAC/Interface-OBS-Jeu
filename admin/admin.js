@@ -17,13 +17,17 @@
     ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
     : defaultApiUrl;
 
+  // Clé API : priorité à l'URL (depuis la page d'accueil), puis localStorage, vide en dev
+  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
+  if (apiKeyFromUrl && typeof localStorage !== 'undefined') {
+    localStorage.setItem('quiz-api-key', apiKeyFromUrl);
+  }
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl,
-    // En développement, pas de clé API nécessaire
-    apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
-      ? '' 
-      : (localStorage.getItem('quiz-api-key') || ''),
+    apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? ''
+      : (apiKeyFromUrl || localStorage.getItem('quiz-api-key') || ''),
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
