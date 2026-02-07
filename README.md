@@ -95,6 +95,33 @@ fly deploy
 
 Pensez à mettre à jour `ALLOWED_ORIGINS` si vous changez de domaine ou d’app.
 
+### Clé API : récupération et bon fonctionnement
+
+En production, l’admin et l’overlay doivent utiliser **la même clé** que celle configurée sur le serveur.
+
+1. **Générer une clé** (une seule fois)  
+   Par exemple :
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+   Copiez le résultat (ex. `a1b2c3d4e5...`).
+
+2. **Configurer le serveur**  
+   - **Fly.io** : `fly secrets set API_KEY="votre-cle-generee"`
+   - **Local** : dans `api/.env` (ou `.env` à la racine selon chargement), ajoutez `API_KEY=votre-cle-generee`
+
+3. **Donner la clé à l’admin**  
+   Ouvrez l’admin → dans **Options**, champ **Clé API** : collez la clé puis cliquez sur **Enregistrer**. Elle est stockée dans le navigateur (localStorage) et utilisée pour toutes les requêtes.
+
+4. **Donner la clé à l’overlay (OBS)**  
+   Dans OBS, source *Browser*, utilisez l’URL avec la clé en paramètre :
+   ```
+   https://votre-app.fly.dev/overlay?apiKey=votre-cle-generee
+   ```
+   L’overlay l’utilise pour le flux SSE et l’API. Sans clé (ou clé incorrecte), vous aurez des 401 et l’overlay ne se mettra pas à jour.
+
+En **local** (localhost), la clé n’est pas obligatoire : tout fonctionne sans la renseigner.
+
 ## Option : sans serveur (mode local uniquement)
 
 1. Ouvrez `overlay/index.html` dans OBS (source Browser, URL en `file://`).
