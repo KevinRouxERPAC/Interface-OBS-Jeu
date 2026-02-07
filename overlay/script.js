@@ -79,6 +79,7 @@
   // ========================
   let state = {
     screen: 'WAITING', // WAITING, SELECTION, THEME, QUESTION
+    flowStep: 0, // 0=attente, 1=matières, 2=niveaux, 3=catégories, 4=thème, 5=question (évite retours en arrière)
     selectedMatiere: null,
     selectedLevel: null,
     selectedCategory: null,
@@ -209,17 +210,40 @@
   // COMMAND HANDLERS
   // ========================
 
+  // Rang dans le flux : on n'applique pas une commande qui ferait revenir en arrière (sauf START_SELECTION)
+  const FLOW_STEP_BY_CMD = {
+    START_SELECTION: 0,
+    SHOW_MATIERES_LIST: 1,
+    SHOW_LEVELS_LIST: 2,
+    SHOW_CATEGORIES_LIST: 3,
+    SHOW_THEME: 4,
+    LOAD_QUESTION: 5
+  };
+
   /**
    * Traite les commandes reçues de l'admin
    */
   function handleCommand(cmd) {
     if (!cmd || typeof cmd !== 'object') return;
-    
+
+    const commandStep = FLOW_STEP_BY_CMD[cmd.type];
+    const isReset = cmd.type === 'START_SELECTION';
+    const wouldRevert = commandStep !== undefined && commandStep < state.flowStep && !isReset;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b43c63b2-ce55-48ca-bc92-61f1b2310621',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'overlay/script.js:handleCommand',message:'cmd received',data:{cmdType:cmd.type,flowStep:state.flowStep,commandStep:commandStep ?? 'n/a',wouldRevert},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
+    if (wouldRevert) {
+      // Ne jamais revenir à un écran précédent (commande ignorée)
+      return;
+    }
+
     if (CONFIG.isDevelopment) {
       console.log('[OVERLAY] Traitement commande:', cmd.type);
     }
     updateConnectionStatus(true);
-    
+
     switch (cmd.type) {
       case 'START_SELECTION':
         showWaitingScreen();
@@ -306,6 +330,7 @@
    */
   function showWaitingScreen() {
     state.screen = 'WAITING';
+    state.flowStep = 0;
     DOM.waitingScreen.style.display = 'block';
     DOM.waitingScreen.classList.add('screen-transition');
     DOM.selectionScreen.style.display = 'none';
@@ -321,8 +346,9 @@
   /**
    * Affiche une liste d'éléments (difficultés ou catégories)
    */
-  function showSelectionList(title, items, selectedId) {
+  function showSelectionList(title, items, selectedId, step) {
     state.screen = 'SELECTION';
+    if (step != null) state.flowStep = step;
     DOM.waitingScreen.style.display = 'none';
     DOM.selectionScreen.style.display = 'block';
     DOM.selectionScreen.classList.add('screen-transition');
@@ -373,7 +399,7 @@
    * Affiche la liste des matières
    */
   function showMatieresList(matieres, selectedId) {
-    showSelectionList('📚 Choisissez la matière', matieres, selectedId);
+    showSelectionList('📚 Choisissez la matière', matieres, selectedId, 1);
     state.selectedMatiere = selectedId;
   }
 
@@ -381,7 +407,7 @@
    * Affiche la liste des difficultés
    */
   function showLevelsList(levels, selectedId) {
-    showSelectionList('🎯 Choisissez la difficulté', levels, selectedId);
+    showSelectionList('🎯 Choisissez la difficulté', levels, selectedId, 2);
     state.selectedLevel = selectedId;
   }
 
@@ -389,7 +415,7 @@
    * Affiche la liste des catégories
    */
   function showCategoriesList(categories, selectedId) {
-    showSelectionList('📂 Choisissez la catégorie', categories, selectedId);
+    showSelectionList('📂 Choisissez la catégorie', categories, selectedId, 3);
     state.selectedCategory = selectedId;
   }
 
@@ -398,6 +424,7 @@
    */
   function showTheme(theme, matiere, level, category) {
     state.screen = 'THEME';
+    state.flowStep = 4;
     state.selectedTheme = theme;
     state.selectedMatiere = matiere;
     state.selectedLevel = level;
@@ -422,6 +449,7 @@
    */
   function loadQuestion(question, matiere, level, category, theme) {
     state.screen = 'QUESTION';
+    state.flowStep = 5;
     state.currentQuestion = question;
     state.selectedMatiere = matiere;
     state.selectedLevel = level;
