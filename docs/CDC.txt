@@ -1,0 +1,143 @@
+# 📘 **Cahier des charges – Système Local d’Overlay Interactif pour OBS**
+
+## 1. **Contexte**
+Le projet vise à fournir un système d’overlay interactif destiné à être affiché dans **OBS Studio**.  
+Le système doit fonctionner **entièrement en local**, sans dépendre d’un serveur externe, tout en utilisant une **base de données Google Sheets** pour stocker et gérer les questions, réponses et autres données du jeu.
+
+L’objectif est de permettre au streamer d’animer un jeu interactif en direct, avec un overlay dynamique mis à jour en temps réel via une interface d’administration locale.
+
+---
+
+# 2. **Objectifs du projet**
+
+## 2.1 Objectifs fonctionnels
+- Afficher un **overlay dynamique** dans OBS via une URL locale.
+- Permettre la **mise à jour instantanée** de l’overlay via une interface d’administration.
+- Charger et synchroniser les données du jeu depuis une **feuille Google Sheets**.
+- Permettre au streamer de contrôler le déroulement du jeu (questions, réponses, scores…).
+- Assurer une communication fluide entre l’admin et l’overlay.
+
+## 2.2 Objectifs non fonctionnels
+- Fonctionnement **100 % local**, sans dépendance à un hébergement distant.
+- Latence minimale entre les actions admin et l’affichage overlay.
+- Interface simple, intuitive et accessible à un utilisateur non technique.
+- Architecture maintenable et évolutive.
+
+---
+
+# 3. **Périmètre fonctionnel**
+
+## 3.1 Overlay
+L’overlay doit :
+- être accessible via une URL locale (ex : `http://localhost:3000/overlay`)
+- afficher les éléments du jeu (questions, réponses, scores, états…)
+- se mettre à jour automatiquement sans rechargement
+- être compatible avec le navigateur intégré d’OBS
+- être personnalisable visuellement (CSS, animations, images)
+
+## 3.2 Interface d’administration
+L’interface admin doit permettre :
+- de sélectionner la question en cours
+- de valider une réponse
+- de réinitialiser ou avancer dans le jeu
+- de modifier les données affichées en direct
+- de visualiser l’état actuel du jeu
+- d’être accessible via une URL locale (ex : `http://localhost:3000/admin`)
+
+## 3.3 Backend local
+Le backend doit :
+- charger les données depuis Google Sheets
+- exposer des endpoints pour l’overlay et l’admin
+- gérer la logique métier (états, transitions, validations)
+- synchroniser les données en temps réel entre admin et overlay
+- fonctionner entièrement en local
+
+---
+
+# 4. **Base de données Google Sheets**
+
+## 4.1 Rôle de Google Sheets
+Google Sheets sert de **source de vérité** pour les données du jeu :
+
+- questions
+- réponses
+- catégories
+- scores éventuels
+- paramètres du jeu
+
+## 4.2 Exigences liées à Google Sheets
+Le système doit :
+- lire les données depuis une feuille Google Sheets
+- permettre une mise à jour simple de la feuille par le créateur
+- utiliser un **compte de service** pour accéder à la feuille
+- stocker les identifiants du compte de service en local (fichier ou variables d’environnement)
+- gérer les erreurs de connexion (offline, clé invalide, feuille introuvable)
+
+## 4.3 Synchronisation
+- Les données doivent être chargées au démarrage du serveur local.
+- Une option de **rafraîchissement manuel** peut être prévue dans l’admin.
+- Le système doit pouvoir fonctionner même si Google Sheets est temporairement inaccessible (cache local).
+
+---
+
+# 5. **Exigences techniques**
+
+## 5.1 Fonctionnement local
+Le système doit :
+- tourner sur la machine du streamer
+- être accessible via `localhost`
+- ne nécessiter aucune connexion externe (hors Google Sheets)
+- fonctionner sur Windows (prioritaire)
+
+## 5.2 Communication temps réel
+Le système doit permettre :
+- la mise à jour instantanée de l’overlay
+- un mécanisme de synchronisation fiable (ex : BroadcastChannel, events internes)
+- une gestion correcte des états (initialisation, mise à jour, reset)
+
+## 5.3 Compatibilité OBS
+OBS accepte :
+- les URLs locales
+- les ports non standards
+- les ressources locales
+
+Le système doit donc être optimisé pour fonctionner dans ce contexte.
+
+---
+
+# 6. **Contraintes**
+
+## 6.1 Contraintes techniques
+- Le système doit fonctionner sans connexion Internet (sauf pour Google Sheets).
+- Le serveur local doit être léger et peu consommateur de ressources.
+- Le système doit rester stable pendant toute la durée d’un live.
+
+## 6.2 Contraintes d’utilisation
+- Le streamer doit pouvoir lancer le système via un script simple (BAT ou EXE).
+- L’interface admin doit être utilisable sans installation supplémentaire.
+- Le système doit être utilisable par une personne non technique.
+
+## 6.3 Contraintes de sécurité
+- Les identifiants Google Sheets doivent être stockés localement et non exposés.
+- Aucune donnée sensible ne doit être accessible depuis l’overlay.
+
+---
+
+# 7. **Livrables attendus**
+- Overlay fonctionnel accessible via URL locale
+- Interface d’administration locale
+- Backend local gérant la logique du jeu
+- Intégration complète avec Google Sheets
+- Script de lancement simple (Windows)
+- Documentation utilisateur
+- Documentation technique
+- Cahier de tests fonctionnels
+
+---
+
+# 8. **Critères de réussite**
+- L’overlay s’affiche correctement dans OBS via une URL locale.
+- Les actions de l’admin se répercutent instantanément sur l’overlay.
+- Les données Google Sheets sont correctement chargées et utilisées.
+- Le système reste stable pendant toute la durée d’un live.
+- Le streamer peut utiliser le système sans assistance technique.

@@ -1,165 +1,82 @@
-# Quiz Overlay pour OBS
+# Qui veut passer pour un teubé - Overlay Interactif OBS
 
-Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questions, le timer et la révélation des réponses. Compatible avec une source navigateur OBS (fond transparent).
+Système local d'overlay interactif pour OBS Studio, permettant d'animer un jeu de questions/réponses en direct.
 
-> **🆕 v1.1** – Sécurité (CORS + API Key), déploiement Fly.io.
+## Prérequis
 
-## 📚 Documentation
+- **Node.js** version 18 ou supérieure ([télécharger](https://nodejs.org/))
+- **OBS Studio** ([télécharger](https://obsproject.com/))
+- Un **Google Spreadsheet** avec les questions du jeu
+- Un **compte de service Google** pour accéder au spreadsheet
 
-- **[📖 Documentation complète](./docs/DOCUMENTATION.md)** – Vue d’ensemble, API, configuration, dépannage
-- **[🔒 Sécurité et clé API](./docs/SECURITE_API_KEY.md)** – Configurer la clé API en production
+## Installation
 
-## Structure
+### 1. Configuration Google Sheets
 
-```
-Interface OBS Jeu/
-├── server.js           # Serveur Express unifié
-├── package.json        # Dépendances et scripts npm
-├── fly.toml            # Configuration déploiement Fly.io
-├── Dockerfile          # Image Docker (utilisée par Fly.io)
-├── admin/              # Panneau de contrôle (navigateur)
-├── api/                # API backend Node.js (router Express)
-├── data/               # Données JSON (questions, niveaux, catégories, thèmes)
-├── docs/               # Documentation
-└── overlay/            # Fichiers pour la source navigateur OBS
-```
+1. Créez un projet sur [Google Cloud Console](https://console.cloud.google.com/)
+2. Activez l'API Google Sheets
+3. Créez un compte de service et téléchargez le fichier JSON de credentials
+4. Placez le fichier dans `server/credentials/service-account.json`
+5. Partagez votre Google Spreadsheet avec l'email du compte de service (en lecture)
 
-## 🚀 Lancer en local
+### 2. Configuration du projet
+
+1. Copiez `.env.example` en `.env`
+2. Remplissez `GOOGLE_SHEETS_ID` avec l'ID de votre spreadsheet
+   - L'ID se trouve dans l'URL : `https://docs.google.com/spreadsheets/d/VOTRE_ID_ICI/edit`
+3. Vérifiez que le chemin vers les credentials est correct
+
+### 3. Lancement
+
+Double-cliquez sur `start.bat` ou exécutez :
 
 ```bash
+cd server
 npm install
-npm start
+node index.js
 ```
 
-Le serveur écoute sur le port 3000 (ou la variable `PORT`). Puis :
+## Utilisation
 
-- **OBS** : ajoutez une source *Browser* avec l’URL `http://localhost:3000/overlay`
-- **Admin** : ouvrez `http://localhost:3000/admin` dans votre navigateur
+### Interface Admin
 
-En production (Fly.io), le port est 8080 et l’URL sera celle de votre app (ex. `https://interface-obs-jeu.fly.dev`).
+Ouvrez `http://localhost:3000/admin` dans votre navigateur.
 
-## ☁️ Déploiement sur Fly.io
+- Sélectionnez une question dans la liste (filtrable par matière, catégorie, thème, niveau)
+- Cliquez sur une proposition pour valider la réponse
+- Utilisez les boutons pour révéler, avancer, afficher les scores ou réinitialiser
+- Gérez les scores des joueurs avec les boutons +1/-1
 
-Le projet est prêt pour un déploiement sur [Fly.io](https://fly.io) (pas de mise en veille, bonne réactivité).
+### Overlay OBS
 
-### Prérequis
+1. Dans OBS, ajoutez une **Source Navigateur** (Browser Source)
+2. URL : `http://localhost:3000/overlay`
+3. Dimensions : 1920 x 1080
+4. Le fond est transparent — l'overlay se superpose à votre contenu
 
-- Compte [Fly.io](https://fly.io)
-- [flyctl](https://fly.io/docs/hands-on/install-flyctl/) installé
+### Rafraîchir les données
 
-### Première fois
+Si vous modifiez le Google Spreadsheet en cours de jeu :
+- Cliquez sur **Rafraîchir** dans l'interface admin
+- Les nouvelles données seront chargées immédiatement
 
-1. **Connexion**
-   ```bash
-   fly auth login
-   ```
+## Structure du Google Spreadsheet
 
-2. **Création de l’app et déploiement**
-   ```bash
-   fly launch
-   ```
-   - Conservez le nom d’app proposé ou choisissez-en un (ex. `interface-obs-jeu`).
-   - Ne créez pas de base Postgres si demandé.
-   - Le premier déploiement se lance après la configuration.
+Le spreadsheet doit contenir 5 onglets :
 
-3. **Variables d’environnement obligatoires**
-   ```bash
-   fly secrets set API_KEY="votre-cle-secrete-forte"
-   fly secrets set ALLOWED_ORIGINS="https://votre-app.fly.dev,https://votre-app.fly.dev/overlay,https://votre-app.fly.dev/admin"
-   ```
-   Remplacez `votre-app` par le nom de votre application Fly (visible dans `fly.toml` ou avec `fly status`).
+- **Questions** : `ID, IDTheme, Question, Right_Answer, Proposition1, Proposition2, Proposition3, Explications, Type_Question`
+- **Theme** : `ID, IDCategory, IDLevel, Name, Description`
+- **Category** : `ID, Name, Start_Date, End_Date, IDMatiere`
+- **Level** : `ID, Libel`
+- **Matiere** : `ID, Nom`
 
-4. **Google Sheets (obligatoire si vous utilisez un Sheet)**  
-   Sur Fly.io le fichier `.env` n’est pas déployé. Pour que les questions viennent de Google Sheets, définissez les **secrets** suivants (sinon l’app utilisera les JSON locaux dans `data/`) :
-   ```bash
-   fly secrets set GOOGLE_SHEETS_ID="votre_id_sheet"
-   fly secrets set GOOGLE_SERVICE_ACCOUNT_EMAIL="votre-compte@projet.iam.gserviceaccount.com"
-   fly secrets set GOOGLE_SERVICE_ACCOUNT_KEY="-----BEGIN PRIVATE KEY-----\nVOTRE_CLE_SUR_UNE_LIGNE_AVEC_\n_POUR_LES_RETOURS_CHARIOT\n-----END PRIVATE KEY-----\n"
-   ```
-   Pour la clé privée : utilisez la même valeur que dans votre `.env` (avec des `\n` littéraux pour les retours à la ligne). Sous PowerShell, vous pouvez mettre la valeur entre guillemets simples pour éviter l’interprétation des échappements. Après avoir défini les secrets, redéployez (`fly deploy`).  
-   Pour vérifier que le serveur voit bien la config : ouvrez `https://votre-app.fly.dev/api/health` et regardez si `sheetsConfigured` est `true`.
+## Architecture
 
-### Déploiements suivants
-
-```bash
-fly deploy
 ```
-
-### URLs après déploiement
-
-- **Overlay OBS** : `https://<votre-app>.fly.dev/overlay`
-- **Admin** : `https://<votre-app>.fly.dev/admin`
-- **API** : `https://<votre-app>.fly.dev/api` (ex. `/api/health`, `/api/random`)
-
-**Lien entre les deux interfaces** : admin et overlay doivent utiliser la **même base** (même app Fly.io). En ouvrant l’admin et l’overlay depuis les URLs ci-dessus, ils utilisent automatiquement la même API. Dans OBS, configure la source *Browser* avec l’URL de l’overlay (ex. `https://<votre-app>.fly.dev/overlay`). Si besoin de forcer l’API (contexte particulier), ajoute `?apiBase=https://<votre-app>.fly.dev` à l’URL de l’admin ou de l’overlay.
-
-Pensez à mettre à jour `ALLOWED_ORIGINS` si vous changez de domaine ou d’app.
-
-### Clé API : récupération et bon fonctionnement
-
-En production, l’admin et l’overlay doivent utiliser **la même clé** que celle configurée sur le serveur.
-
-1. **Générer une clé** (une seule fois)  
-   Par exemple :
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
-   Copiez le résultat (ex. `a1b2c3d4e5...`).
-
-2. **Configurer le serveur**  
-   - **Fly.io** : `fly secrets set API_KEY="votre-cle-generee"`
-   - **Local** : dans `api/.env` (ou `.env` à la racine selon chargement), ajoutez `API_KEY=votre-cle-generee`
-
-3. **Donner la clé à l’admin**  
-   Ouvrez l’admin → dans **Options**, champ **Clé API** : collez la clé puis cliquez sur **Enregistrer**. Elle est stockée dans le navigateur (localStorage) et utilisée pour toutes les requêtes.
-
-4. **Donner la clé à l’overlay (OBS)**  
-   Dans OBS, source *Browser*, utilisez l’URL avec la clé en paramètre :
-   ```
-   https://votre-app.fly.dev/overlay?apiKey=votre-cle-generee
-   ```
-   L’overlay l’utilise pour le flux SSE et l’API. Sans clé (ou clé incorrecte), vous aurez des 401 et l’overlay ne se mettra pas à jour.
-
-En **local** (localhost), la clé n’est pas obligatoire : tout fonctionne sans la renseigner.
-
-## Option : sans serveur (mode local uniquement)
-
-1. Ouvrez `overlay/index.html` dans OBS (source Browser, URL en `file://`).
-2. Ouvrez `admin/admin.html` dans le navigateur.
-
-Communication overlay/admin via `BroadcastChannel` (même machine / même origine). Fallback `localStorage` si besoin.
-
-## API Node.js
-
-Le serveur expose notamment :
-
-- `/overlay` – Interface overlay pour OBS
-- `/admin` – Panneau d’administration
-- `/api` – API REST (`/api/random`, `/api/health`, etc.)
-
-`GET /api/random` renvoie une question depuis `data/questions.json` ou depuis Google Sheets si configuré.
-
-### Connexion Google Sheets (compte de service)
-
-1. **Google Cloud Console** : créez un projet, activez « Google Sheets API », créez un compte de service et récupérez une clé JSON (`client_email`, `private_key`).
-2. **Sheet** : partagez le document avec l’email du compte de service en « Lecteur ».
-3. **Structure** : onglets **Questions**, **Theme**, **Category**, **Level**, **Matiere** (détails dans [DOCUMENTATION.md](./docs/DOCUMENTATION.md)).
-4. **Variables d’environnement** (ou `.env` en local) : `GOOGLE_SHEETS_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_KEY`, et optionnellement les plages (`GOOGLE_SHEETS_QUESTIONS_RANGE`, etc.). Voir `.env.example`.
-
-Sans Google Sheets, l’API utilise `data/questions.json`.
-
-## Conseils OBS
-
-- Fond déjà transparent ; « Custom CSS » transparent si besoin.
-- Désactiver « Use hardware acceleration » en cas de souci de rendu.
-- Résolution conseillée de la source : 1920×200 (bandeau bas), layout responsive.
-
-## Personnalisation
-
-- Couleurs et animations : `overlay/style.css`
-- Durée par défaut : `overlay/script.js` (`DEFAULT_DURATION`)
-
-## Limitations connues
-
-- Overlay et admin doivent être servis depuis la même origine (ou configurer CORS / `ALLOWED_ORIGINS`).
-- Pas de persistance des états entre rechargements ; l’admin redemande l’état à l’ouverture.
+├── server/          # Backend Node.js (Express + Socket.IO)
+├── admin/           # Interface d'administration
+├── overlay/         # Overlay pour OBS
+├── docs/            # Documentation
+├── .env             # Configuration
+└── start.bat        # Script de lancement
+```

@@ -1,51 +1,24 @@
 # Dependencies
 node_modules/
-package-lock.json
+server/node_modules/
 
-# Environment variables
+# Environment
 .env
-.env.local
-.env.*.local
 
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+# Credentials (sécurité)
+server/credentials/*.json
+server/credentials/service-account.json
 
-# Service account credentials
-*-credentials.json
-*-service-account.json
-credentials.json
-service-account.json
+# Cache
+server/cache/data-cache.json
 
-# OS files
-.DS_Store
+# OS
 Thumbs.db
-desktop.ini
+Desktop.ini
+.DS_Store
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.project
-.classpath
-.settings/
-
-# Backup files
-*.backup
-*.bak
-*.tmp
-
-# PID files
-**/.server.pid
-.server.pid
-
-# Build outputs
-dist/
-build/
-out/

@@ -1,0 +1,17 @@
+{
+  "name": "qui-veut-passer-pour-un-teube-server",
+  "version": "1.0.0",
+  "description": "Serveur local pour l'overlay interactif OBS - Qui veut passer pour un teubé",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "socket.io": "^4.8.1"
+  }
+}

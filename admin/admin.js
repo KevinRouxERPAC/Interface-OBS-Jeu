@@ -1,1145 +1,402 @@
 /**
- * ADMIN SCRIPT
- * Interface de contrôle du quiz pour le streamer
- * Envoie les commandes à l'overlay et gère le flux complet
+ * Admin Interface - Logique front-end
+ * Gère les interactions utilisateur et la communication avec le backend.
  */
 
-(() => {
-  // ========================
-  // CONFIG & CONSTANTS
-  // ========================
-  // Permettre de forcer l'URL de l'API (ex. déploiement Fly.io : ?apiBase=https://ton-app.fly.dev)
-  const urlParams = new URLSearchParams(window.location.search);
-  const apiBaseFromUrl = urlParams.get('apiBase') || urlParams.get('api');
-  const origin = window.location.origin;
-  const defaultApiUrl = origin + '/api';
-  const apiUrl = apiBaseFromUrl
-    ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
-    : defaultApiUrl;
+// ─── Connexion Socket.IO ────────────────────────────────────
+const socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
 
-  // Clé API : priorité à l'URL (depuis la page d'accueil), puis localStorage, vide en dev
-  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
-  if (apiKeyFromUrl && typeof localStorage !== 'undefined') {
-    localStorage.setItem('quiz-api-key', apiKeyFromUrl);
+// ─── State ──────────────────────────────────────────────────
+let gameState = null;
+let allQuestions = [];
+let allThemes = [];
+let allCategories = [];
+let allLevels = [];
+let allMatieres = [];
+
+// ─── DOM Elements ───────────────────────────────────────────
+const wsStatus = document.getElementById('ws-status');
+const gsStatus = document.getElementById('gs-status');
+const btnRefresh = document.getElementById('btn-refresh-data');
+const btnReveal = document.getElementById('btn-reveal');
+const btnNext = document.getElementById('btn-next');
+const btnScores = document.getElementById('btn-scores');
+const btnReset = document.getElementById('btn-reset');
+const btnRandom = document.getElementById('btn-random');
+const btnAddPoint = document.getElementById('btn-add-point');
+const btnRemovePoint = document.getElementById('btn-remove-point');
+const playerNameInput = document.getElementById('player-name');
+const currentQuestionDisplay = document.getElementById('current-question-display');
+const cqText = document.getElementById('cq-text');
+const cqMeta = document.getElementById('cq-meta');
+const cqPropositions = document.getElementById('cq-propositions');
+const cqExplanation = document.getElementById('cq-explanation');
+const questionList = document.getElementById('question-list');
+const scoresList = document.getElementById('scores-list');
+const filterMatiere = document.getElementById('filter-matiere');
+const filterCategory = document.getElementById('filter-category');
+const filterTheme = document.getElementById('filter-theme');
+const filterLevel = document.getElementById('filter-level');
+
+// ─── Toast ──────────────────────────────────────────────────
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ─── API Calls ──────────────────────────────────────────────
+async function apiCall(url, method = 'GET', body = null) {
+  try {
+    const options = {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    };
+    if (body) options.body = JSON.stringify(body);
+    const res = await fetch(url, options);
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Erreur inconnue', 'error');
+    }
+    return data;
+  } catch (err) {
+    showToast(`Erreur réseau: ${err.message}`, 'error');
+    return { success: false, error: err.message };
   }
-  const CONFIG = {
-    channelName: 'quiz-control',
-    apiUrl,
-    apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? ''
-      : (apiKeyFromUrl || localStorage.getItem('quiz-api-key') || ''),
-    selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
-    errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
-    maxRetries: 3, // nombre max de tentatives de reconnexion
-    isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  };
+}
 
-  const STORAGE_KEYS = {
-    matiereScope: 'quiz-matiere-scope'
-  };
+// ─── Load Data ──────────────────────────────────────────────
+async function loadAllData() {
+  const [qRes, tRes, cRes, lRes, mRes, statusRes] = await Promise.all([
+    apiCall('/api/data/questions'),
+    apiCall('/api/data/themes'),
+    apiCall('/api/data/categories'),
+    apiCall('/api/data/levels'),
+    apiCall('/api/data/matieres'),
+    apiCall('/api/data/status'),
+  ]);
 
-  const MATIERE_SCOPE = {
-    ALL: 'ALL',
-    HISTOIRE_ONLY: 'HISTOIRE_ONLY'
-  };
+  if (qRes.success) allQuestions = qRes.data;
+  if (tRes.success) allThemes = tRes.data;
+  if (cRes.success) allCategories = cRes.data;
+  if (lRes.success) allLevels = lRes.data;
+  if (mRes.success) allMatieres = mRes.data;
 
-  const HISTOIRE_MATIERE_NAME = 'Histoire';
-
-  // ========================
-  // DOM ELEMENTS
-  // ========================
-  const DOM = {
-    // Status
-    statusDot: document.getElementById('status-dot'),
-    statusText: document.getElementById('status-text'),
-    
-    // Sections
-    waitingSection: document.getElementById('section-waiting'),
-    matiereSelectionSection: document.getElementById('section-matiere-selection'),
-    levelSelectionSection: document.getElementById('section-level-selection'),
-    categorySelectionSection: document.getElementById('section-category-selection'),
-    themeSelectionSection: document.getElementById('section-theme-selection'),
-    questionWaitingSection: document.getElementById('section-question-waiting'),
-    questionActiveSection: document.getElementById('section-question-active'),
-    
-    // Boutons contrôles
-    btnStartSelection: document.getElementById('btn-start-selection'),
-    btnDrawTheme: document.getElementById('btn-draw-theme'),
-    btnLaunchQuestion: document.getElementById('btn-launch-question'),
-    btnRevealAnswer: document.getElementById('btn-reveal-answer'),
-    btnNewQuestion: document.getElementById('btn-new-question'),
-    btnRestartSelection: document.getElementById('btn-restart-selection'),
-    btnRestartSelectionAlways: document.getElementById('btn-restart-selection-always'),
-
-    // Options
-    matiereScopeSelect: document.getElementById('matiere-scope'),
-    apiKeyInput: document.getElementById('api-key-input'),
-    btnSaveApiKey: document.getElementById('btn-save-api-key'),
-    
-    // Grilles
-    matieresGrid: document.getElementById('matieres-grid'),
-    levelsGrid: document.getElementById('levels-grid'),
-    categoriesGrid: document.getElementById('categories-grid'),
-    
-    // Affichages
-    displayMatiere: document.getElementById('display-matiere'),
-    displayMatiere2: document.getElementById('display-matiere-2'),
-    displayMatiere3: document.getElementById('display-matiere-3'),
-    displayMatiere4: document.getElementById('display-matiere-4'),
-    displayLevel: document.getElementById('display-level'),
-    displayLevel2: document.getElementById('display-level-2'),
-    displayLevel3: document.getElementById('display-level-3'),
-    displayCategory: document.getElementById('display-category'),
-    displayCategory2: document.getElementById('display-category-2'),
-    displayTheme: document.getElementById('display-theme'),
-    displayCorrectAnswer: document.getElementById('display-correct-answer'),
-    
-    // Informations (blocs streamer)
-    currentState: document.getElementById('current-state'),
-    adminInfoTags: document.getElementById('admin-info-tags'),
-    adminThemeDesc: document.getElementById('admin-theme-desc'),
-    currentQuestion: document.getElementById('current-question'),
-    adminPropositions: document.getElementById('admin-propositions'),
-    adminBlockPropositions: document.getElementById('admin-block-propositions'),
-    adminExplication: document.getElementById('admin-explication'),
-    adminBlockExplication: document.getElementById('admin-block-explication'),
-    eventLog: document.getElementById('event-log')
-  };
-
-  function normalizeText(s) {
-    return String(s ?? '').trim().toLowerCase();
+  // Mettre à jour le statut Google Sheets
+  if (statusRes.success) {
+    updateGSStatus(statusRes.data.googleSheets);
   }
 
-  function getMatiereScope() {
-    const raw = (DOM.matiereScopeSelect?.value || localStorage.getItem(STORAGE_KEYS.matiereScope) || MATIERE_SCOPE.ALL);
-    return raw === MATIERE_SCOPE.HISTOIRE_ONLY ? MATIERE_SCOPE.HISTOIRE_ONLY : MATIERE_SCOPE.ALL;
-  }
+  populateFilters();
+  renderQuestionList();
+  updateStats();
+}
 
-  function setMatiereScope(scope) {
-    const normalized = scope === MATIERE_SCOPE.HISTOIRE_ONLY ? MATIERE_SCOPE.HISTOIRE_ONLY : MATIERE_SCOPE.ALL;
-    localStorage.setItem(STORAGE_KEYS.matiereScope, normalized);
-    if (DOM.matiereScopeSelect) {
-      DOM.matiereScopeSelect.value = normalized;
+// ─── Update UI ──────────────────────────────────────────────
+function updateGameUI(state) {
+  gameState = state;
+
+  // Stats
+  updateStats();
+
+  // Boutons
+  const s = state.state;
+  btnReveal.disabled = s !== 'question_displayed';
+  btnNext.disabled = s !== 'answer_validated' && s !== 'scoreboard';
+
+  // Current Question
+  if (state.currentQuestion) {
+    currentQuestionDisplay.classList.remove('hidden');
+    cqText.textContent = state.currentQuestion.question;
+
+    // Meta tags
+    cqMeta.innerHTML = '';
+    if (state.currentQuestion.themeName) {
+      cqMeta.innerHTML += `<span class="tag">${state.currentQuestion.themeName}</span>`;
     }
-  }
-
-  function initMatiereScopeSelect() {
-    if (!DOM.matiereScopeSelect) return;
-    const stored = localStorage.getItem(STORAGE_KEYS.matiereScope);
-    setMatiereScope(stored);
-    DOM.matiereScopeSelect.addEventListener('change', () => {
-      setMatiereScope(DOM.matiereScopeSelect.value);
-      const label = getMatiereScope() === MATIERE_SCOPE.HISTOIRE_ONLY ? 'Uniquement Histoire' : 'Toutes les matières';
-      logEvent(`⚙️ Option matières: ${label}`);
-    });
-  }
-
-  function findHistoireMatiere(matieres) {
-    if (!Array.isArray(matieres)) return null;
-    const byName = matieres.find(m => normalizeText(m?.name) === normalizeText(HISTOIRE_MATIERE_NAME));
-    if (byName) return byName;
-    const byId = matieres.find(m => String(m?.id) === '1');
-    return byId || null;
-  }
-
-  // ========================
-  // STATE
-  // ========================
-  let state = {
-    screen: 'WAITING', // WAITING, MATIERE_SELECTION, LEVEL_SELECTION, CATEGORY_SELECTION, THEME_SELECTION, QUESTION_WAITING, QUESTION_ACTIVE
-    selectedMatiere: null,
-    selectedLevel: null,
-    selectedCategory: null,
-    selectedTheme: null,
-    currentQuestion: null,
-    answerRevealed: false,
-    allMatieres: [],
-    allLevels: [],
-    allCategories: [],
-    allThemes: []
-  };
-
-  // ========================
-  // COMMUNICATION
-  // ========================
-  let channel = null;
-  let lastCommandId = 0;
-
-  /**
-   * Initialise la communication avec l'overlay
-   */
-  function initChannel() {
-    if (CONFIG.isDevelopment) {
-      console.log('[ADMIN] Initialisation de la communication');
+    if (state.currentQuestion.levelName) {
+      cqMeta.innerHTML += `<span class="tag">${state.currentQuestion.levelName}</span>`;
     }
-    
-    if ('BroadcastChannel' in window) {
-      try {
-        channel = new BroadcastChannel(CONFIG.channelName);
-        if (CONFIG.isDevelopment) {
-          console.log('[ADMIN] BroadcastChannel activé');
-        }
-      } catch (err) {
-        if (CONFIG.isDevelopment) {
-          console.warn('[ADMIN] BroadcastChannel échoué:', err);
-        }
-      }
+    if (state.currentQuestion.categoryName) {
+      cqMeta.innerHTML += `<span class="tag">${state.currentQuestion.categoryName}</span>`;
     }
-  }
 
-  /**
-   * Envoie une commande à l'overlay
-   */
-  let retryCount = 0;
-  async function sendCommand(cmd) {
-    if (CONFIG.isDevelopment) {
-      console.log('[ADMIN] Envoi commande:', cmd);
-    }
-    
-    // Via BroadcastChannel (onglets navigateur)
-    if (channel) {
-      channel.postMessage(cmd);
-    }
-    
-    // Via API serveur (OBS) avec retry logic
-    // En développement, on envoie toujours même sans clé API
-    if (CONFIG.apiUrl) {
-      try {
-        const res = await fetchWithApiKey(`${CONFIG.apiUrl}/command`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cmd)
-        });
-        
-        if (!res.ok) {
-          if (res.status === 401) {
-            const errorData = await res.json().catch(() => ({ error: 'Non autorisé' }));
-            if (CONFIG.isDevelopment) {
-              console.warn('[ADMIN] Erreur 401 - Clé API manquante ou invalide:', errorData.error);
-              console.warn('[ADMIN] 💡 En développement, la clé API est optionnelle. Le serveur devrait accepter.');
-              // En développement, on continue quand même (le serveur devrait accepter)
-              return; // Ne pas throw, juste logger
-            } else {
-              throw new Error(`HTTP ${res.status}: ${errorData.error}`);
-            }
-          } else if (res.status === 403) {
-            throw new Error(`HTTP ${res.status}: Accès interdit`);
-          } else {
-            throw new Error(`HTTP ${res.status}`);
-          }
-        }
-        
-        retryCount = 0; // Reset on success
-      } catch (err) {
-        retryCount++;
-        if (CONFIG.isDevelopment) {
-          console.warn('[ADMIN] Erreur envoi serveur:', err);
-        }
-        
-        // Retry automatique avec backoff exponentiel (sauf pour les erreurs 401/403)
-        if (retryCount <= CONFIG.maxRetries && !err.message?.includes('401') && !err.message?.includes('403')) {
-          const delay = CONFIG.errorRetryDelay * Math.pow(2, retryCount - 1);
-          setTimeout(() => sendCommand(cmd), delay);
-        }
-      }
-    }
-  }
+    // Propositions
+    renderPropositions(state);
 
-  /**
-   * Fetch avec support clé API
-   */
-  function fetchWithApiKey(url, options = {}) {
-    const headers = { ...options.headers };
-    if (CONFIG.apiKey) {
-      headers['X-API-Key'] = CONFIG.apiKey;
-    }
-    return fetch(url, { ...options, headers });
-  }
-
-  // ========================
-  // LOGGER
-  // ========================
-
-  /**
-   * Log un événement dans le journal et la console
-   */
-  function logEvent(msg) {
-    const timestamp = new Date().toLocaleTimeString('fr-FR');
-    const entry = `[${timestamp}] ${msg}`;
-    
-    if (CONFIG.isDevelopment) {
-      console.log('[ADMIN]', msg);
-    }
-    
-    // Ajoute au journal visuel
-    const log = DOM.eventLog;
-    if (log && log.textContent.includes('En attente d\'événements')) {
-      log.innerHTML = '';
-    }
-    
-    if (log) {
-      const line = document.createElement('div');
-      line.textContent = entry;
-      line.style.marginBottom = '4px';
-      log.appendChild(line);
-      log.scrollTop = log.scrollHeight;
-    }
-  }
-
-  // ========================
-  // UI MANAGEMENT
-  // ========================
-
-  /**
-   * Affiche la section appropriée basée sur l'état
-   */
-  function updateUI() {
-    // Masque toutes les sections et retire les classes d'animation
-    const allSections = [
-      DOM.waitingSection,
-      DOM.matiereSelectionSection,
-      DOM.levelSelectionSection,
-      DOM.categorySelectionSection,
-      DOM.themeSelectionSection,
-      DOM.questionWaitingSection,
-      DOM.questionActiveSection
-    ];
-    
-    allSections.forEach(section => {
-      if (section) {
-        section.style.display = 'none';
-        section.classList.remove('screen-transition', 'fade-in');
-      }
-    });
-    
-    // Affiche la bonne section avec animation
-    let activeSection = null;
-    switch (state.screen) {
-      case 'WAITING':
-        activeSection = DOM.waitingSection;
-        DOM.statusText.textContent = 'État: EN ATTENTE';
-        updateCurrentState('EN ATTENTE', '-', '-', '-', '-', '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'MATIERE_SELECTION':
-        activeSection = DOM.matiereSelectionSection;
-        DOM.statusText.textContent = 'État: SÉLECTION MATIÈRE';
-        updateCurrentState('SÉLECTION MATIÈRE', '-', '-', '-', '-', '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'LEVEL_SELECTION':
-        activeSection = DOM.levelSelectionSection;
-        DOM.displayMatiere.textContent = state.selectedMatiere?.name || '-';
-        DOM.statusText.textContent = 'État: SÉLECTION DIFFICULTÉ';
-        updateCurrentState('SÉLECTION DIFFICULTÉ', state.selectedMatiere?.name, '-', '-', '-', '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'CATEGORY_SELECTION':
-        activeSection = DOM.categorySelectionSection;
-        DOM.displayMatiere2.textContent = state.selectedMatiere?.name || '-';
-        DOM.displayLevel.textContent = state.selectedLevel?.name || '-';
-        DOM.statusText.textContent = 'État: SÉLECTION CATÉGORIE';
-        updateCurrentState('SÉLECTION CATÉGORIE', state.selectedMatiere?.name, state.selectedLevel?.name, '-', '-', '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'THEME_SELECTION':
-        activeSection = DOM.themeSelectionSection;
-        DOM.displayMatiere3.textContent = state.selectedMatiere?.name || '-';
-        DOM.displayLevel2.textContent = state.selectedLevel?.name || '-';
-        DOM.displayCategory.textContent = state.selectedCategory?.name || '-';
-        DOM.statusText.textContent = 'État: SÉLECTION THÈME';
-        updateCurrentState('SÉLECTION THÈME', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, '-', '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'QUESTION_WAITING':
-        activeSection = DOM.questionWaitingSection;
-        DOM.displayMatiere4.textContent = state.selectedMatiere?.name || '-';
-        DOM.displayLevel3.textContent = state.selectedLevel?.name || '-';
-        DOM.displayCategory2.textContent = state.selectedCategory?.name || '-';
-        DOM.displayTheme.textContent = state.selectedTheme?.name || '-';
-        DOM.statusText.textContent = 'État: ATTENTE QUESTION';
-        updateCurrentState('ATTENTE QUESTION', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '');
-        updateCurrentQuestion(null);
-        break;
-        
-      case 'QUESTION_ACTIVE':
-        activeSection = DOM.questionActiveSection;
-        const correctIdx = state.currentQuestion?.bonneReponse;
-        const keyLabelsUI = ['A', 'B', 'C', 'D'];
-        const correctAnswer = keyLabelsUI[correctIdx] || '?';
-        DOM.displayCorrectAnswer.textContent = `${correctAnswer}`;
-        DOM.statusText.textContent = 'État: QUESTION EN COURS';
-        updateCurrentState('QUESTION EN COURS', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '');
-        updateCurrentQuestion(state.currentQuestion);
-        const answerBtns = document.getElementById('answer-selection-buttons');
-        if (answerBtns) {
-          answerBtns.style.display = 'grid';
-        }
-        break;
-    }
-    
-    // Affiche la section active avec animation
-    if (activeSection) {
-      activeSection.style.display = 'block';
-      activeSection.classList.add('screen-transition');
-      // Force le reflow pour déclencher l'animation
-      void activeSection.offsetWidth;
-    }
-  }
-
-  /**
-   * Met à jour le bloc Infos générales (tags + description du thème)
-   */
-  function updateCurrentState(status, matiere, level, category, theme, themeDescription) {
-    const tags = DOM.adminInfoTags;
-    const desc = DOM.adminThemeDesc;
-    if (!tags || !desc) return;
-    
-    const items = [
-      { label: 'Statut', value: status },
-      { label: 'Matière', value: matiere },
-      { label: 'Difficulté', value: level },
-      { label: 'Catégorie', value: category },
-      { label: 'Thème', value: theme }
-    ];
-    tags.innerHTML = items.map(({ label, value }) =>
-      `<span class="admin-tag">${label}: <strong>${value || '-'}</strong></span>`
-    ).join('');
-    
-    if (themeDescription && String(themeDescription).trim()) {
-      desc.textContent = themeDescription;
-      desc.style.display = '';
+    // Explanation
+    if ((s === 'answer_validated' || s === 'answer_revealed') && state.currentQuestion.explications) {
+      cqExplanation.textContent = state.currentQuestion.explications;
+      cqExplanation.classList.remove('hidden');
     } else {
-      desc.textContent = '';
-      desc.style.display = 'none';
+      cqExplanation.classList.add('hidden');
     }
-    DOM.currentState?.classList.add('fade-in');
+  } else {
+    currentQuestionDisplay.classList.add('hidden');
   }
 
-  /**
-   * Met à jour les blocs Question, Propositions et Explication
-   */
-  function updateCurrentQuestion(question) {
-    const qEl = DOM.currentQuestion;
-    const propCont = DOM.adminPropositions;
-    const propBlock = DOM.adminBlockPropositions;
-    const explCont = DOM.adminExplication;
-    const explBlock = DOM.adminBlockExplication;
-    if (!qEl) return;
-    
-    qEl.classList.add('fade-in');
-    
-    if (!question) {
-      qEl.innerHTML = '<em class="text-muted">Aucune question chargée</em>';
-      qEl.classList.add('text-muted');
-      if (propBlock) propBlock.style.display = 'none';
-      if (explBlock) explBlock.style.display = 'none';
-      return;
-    }
-    
-    const keyLabels = ['A', 'B', 'C', 'D'];
-    const correctIdx = question.bonneReponse;
-    const revealed = state.answerRevealed;
-    const selectedIdx = (question && question.selectedByAdmin != null) ? Number(question.selectedByAdmin) : null;
-    
-    qEl.textContent = question.question || '';
-    qEl.classList.remove('text-muted');
-    
-    if (propCont && propBlock) {
-      propBlock.style.display = '';
-      propCont.innerHTML = (question.propositions || []).map((p, i) => {
-        const isCorrect = i === correctIdx;
-        const kl = keyLabels[i] || '?';
-        let cls = 'admin-proposition-card';
-        if (selectedIdx !== null && i === selectedIdx) cls += ' admin-proposition-selected';
-        if (revealed && isCorrect) cls += ' admin-proposition-correct';
-        if (revealed && selectedIdx !== null && selectedIdx !== correctIdx && i === selectedIdx) cls += ' admin-proposition-wrong';
-        return `<div class="${cls}" data-index="${i}"><span class="admin-proposition-label">${kl}</span><span class="admin-proposition-text">${escapeHtml(p)}</span></div>`;
-      }).join('');
-    }
-    
-    if (explCont && explBlock) {
-      if (revealed && (question.explication || '').trim()) {
-        explBlock.style.display = '';
-        explCont.textContent = question.explication;
-        explCont.classList.add('fade-in');
-      } else {
-        explBlock.style.display = 'none';
-        explCont.textContent = '';
+  // Scores
+  renderScores(state.scores);
+
+  // Marquer les questions posées dans la liste
+  renderQuestionList();
+}
+
+function renderPropositions(state) {
+  cqPropositions.innerHTML = '';
+  const q = state.currentQuestion;
+  if (!q || !q.propositions) return;
+
+  q.propositions.forEach((prop, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'proposition-btn';
+    btn.textContent = prop;
+
+    // Coloration selon l'état
+    if (state.state === 'answer_validated' || state.state === 'answer_revealed') {
+      if (prop === q.rightAnswer) {
+        btn.classList.add('correct');
       }
+      if (state.selectedAnswer === index && !state.isCorrect) {
+        btn.classList.add('incorrect');
+      }
+      if (state.selectedAnswer === index) {
+        btn.classList.add('selected');
+      }
+    } else {
+      // En mode question_displayed, cliquer valide la réponse
+      btn.addEventListener('click', () => validateAnswer(index));
     }
+
+    cqPropositions.appendChild(btn);
+  });
+}
+
+function renderScores(scores) {
+  if (!scores || Object.keys(scores).length === 0) {
+    scoresList.innerHTML = '<p class="empty-state">Aucun score pour l\'instant</p>';
+    return;
   }
 
-  function escapeHtml(s) {
-    const div = document.createElement('div');
-    div.textContent = s;
-    return div.innerHTML;
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  scoresList.innerHTML = sorted.map(([name, score]) =>
+    `<div class="score-item">
+      <span class="player-name">${escapeHtml(name)}</span>
+      <span class="player-score">${score}</span>
+    </div>`
+  ).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-questions').textContent = allQuestions.length;
+  document.getElementById('stat-themes').textContent = allThemes.length;
+  document.getElementById('stat-asked').textContent = gameState ? gameState.questionHistory.length : 0;
+
+  const stateLabels = {
+    waiting: 'Attente',
+    question_displayed: 'Question',
+    answer_revealed: 'Réponse révélée',
+    answer_validated: 'Réponse validée',
+    scoreboard: 'Scores',
+  };
+  document.getElementById('stat-state').textContent = gameState ? (stateLabels[gameState.state] || gameState.state) : 'Attente';
+}
+
+function updateGSStatus(gs) {
+  if (gs.status === 'connected') {
+    gsStatus.className = 'status-badge connected';
+  } else if (gs.lastError) {
+    gsStatus.className = 'status-badge disconnected';
+  } else {
+    gsStatus.className = 'status-badge cached';
+  }
+}
+
+// ─── Filters & Question List ────────────────────────────────
+function populateFilters() {
+  // Matières
+  filterMatiere.innerHTML = '<option value="">Toutes les matières</option>';
+  allMatieres.forEach(m => {
+    filterMatiere.innerHTML += `<option value="${escapeHtml(m.Nom)}">${escapeHtml(m.Nom)}</option>`;
+  });
+
+  // Catégories
+  filterCategory.innerHTML = '<option value="">Toutes les catégories</option>';
+  allCategories.forEach(c => {
+    filterCategory.innerHTML += `<option value="${escapeHtml(c.Name)}">${escapeHtml(c.Name)}</option>`;
+  });
+
+  // Thèmes
+  filterTheme.innerHTML = '<option value="">Tous les thèmes</option>';
+  allThemes.forEach(t => {
+    filterTheme.innerHTML += `<option value="${t.ID}">${escapeHtml(t.Name)}</option>`;
+  });
+
+  // Niveaux
+  filterLevel.innerHTML = '<option value="">Tous les niveaux</option>';
+  allLevels.forEach(l => {
+    filterLevel.innerHTML += `<option value="${escapeHtml(l.Libel)}">${escapeHtml(l.Libel)}</option>`;
+  });
+}
+
+function getFilteredQuestions() {
+  let questions = [...allQuestions];
+
+  const matiere = filterMatiere.value;
+  const category = filterCategory.value;
+  const theme = filterTheme.value;
+  const level = filterLevel.value;
+
+  if (matiere) questions = questions.filter(q => q.matiereName === matiere);
+  if (category) questions = questions.filter(q => q.categoryName === category);
+  if (theme) questions = questions.filter(q => q.IDTheme === parseInt(theme, 10));
+  if (level) questions = questions.filter(q => q.levelName === level);
+
+  return questions;
+}
+
+function renderQuestionList() {
+  const questions = getFilteredQuestions();
+
+  if (questions.length === 0) {
+    questionList.innerHTML = '<p class="empty-state">Aucune question disponible</p>';
+    return;
   }
 
-  // ========================
-  // LOAD DATA
-  // ========================
+  const askedIds = gameState ? gameState.questionHistory : [];
 
-  /**
-   * Charge les matières depuis le serveur
-   */
-  async function loadMatieres() {
-    try {
-      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/matieres`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const matieres = await res.json();
-      if (!Array.isArray(matieres)) {
-        throw new Error('Format de données invalide');
-      }
-      
-      // Log pour déboguer
-      if (CONFIG.isDevelopment) {
-        console.log('[ADMIN] Matières reçues:', matieres);
-        matieres.forEach(m => {
-          console.log(`[ADMIN] Matière ${m.name}:`, {
-            id: m.id,
-            levels: m.levels,
-            levelsType: typeof m.levels,
-            isArray: Array.isArray(m.levels)
-          });
-        });
-      }
-      
-      state.allMatieres = matieres;
-      renderMatiereButtons();
-      logEvent('✓ Matières chargées: ' + matieres.length);
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement matières:', err);
-      }
-      logEvent('✗ Erreur chargement matières: ' + err.message);
-    }
-  }
+  questionList.innerHTML = questions.map(q => {
+    const isAsked = askedIds.includes(q.ID);
+    return `<div class="question-item ${isAsked ? 'asked' : ''}" data-id="${q.ID}">
+      <span class="q-text">${escapeHtml(q.Question)}</span>
+      <span class="q-tags">
+        ${q.themeName ? `<span class="tag">${escapeHtml(q.themeName)}</span>` : ''}
+        ${q.levelName ? `<span class="tag">${escapeHtml(q.levelName)}</span>` : ''}
+      </span>
+    </div>`;
+  }).join('');
 
-  /**
-   * Charge les difficultés depuis le serveur
-   */
-  async function loadLevels() {
-    try {
-      const res = await fetchWithApiKey(`${CONFIG.apiUrl}/levels`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const levels = await res.json();
-      if (!Array.isArray(levels)) {
-        throw new Error('Format de données invalide');
-      }
-      state.allLevels = levels;
-      renderLevelButtons();
-      logEvent('✓ Difficultés chargées: ' + levels.length);
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement niveaux:', err);
-      }
-      logEvent('✗ Erreur chargement difficultés: ' + err.message);
-    }
-  }
-
-  /**
-   * Charge les catégories depuis le serveur (filtrées par matière si sélectionnée)
-   */
-  async function loadCategories() {
-    try {
-      let url = `${CONFIG.apiUrl}/categories`;
-      if (state.selectedMatiere?.id) {
-        const params = new URLSearchParams();
-        params.append('matiereId', state.selectedMatiere.id);
-        // Dans le MLD: le niveau filtre indirectement via Theme.idLevel
-        if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
-        url += `?${params.toString()}`;
-      }
-      const res = await fetchWithApiKey(url);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const categories = await res.json();
-      if (!Array.isArray(categories)) {
-        throw new Error('Format de données invalide');
-      }
-      state.allCategories = categories;
-      renderCategoryButtons();
-      logEvent('✓ Catégories chargées: ' + categories.length);
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement catégories:', err);
-      }
-      logEvent('✗ Erreur chargement catégories: ' + err.message);
-    }
-  }
-
-  /**
-   * Charge les thèmes pour une catégorie
-   */
-  async function loadThemesForCategory(categoryId) {
-    try {
-      const params = new URLSearchParams();
-      params.append('categoryId', categoryId);
-      if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
-      const url = `${CONFIG.apiUrl}/themes?${params.toString()}`;
-      const res = await fetchWithApiKey(url);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const themes = await res.json();
-      if (!Array.isArray(themes)) {
-        throw new Error('Format de données invalide');
-      }
-      state.allThemes = themes;
-      logEvent('✓ Thèmes chargés: ' + themes.length);
-      return themes;
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement thèmes:', err);
-      }
-      logEvent('✗ Erreur chargement thèmes: ' + err.message);
-      return [];
-    }
-  }
-
-  /**
-   * Charge une question aléatoire
-   */
-  async function loadRandomQuestion() {
-    try {
-      const params = new URLSearchParams();
-      if (state.selectedMatiere?.id) params.append('matiereId', state.selectedMatiere.id);
-      if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
-      if (state.selectedCategory?.id) params.append('categoryId', state.selectedCategory.id);
-      if (state.selectedTheme?.id) params.append('themeId', state.selectedTheme.id);
-      
-      const url = `${CONFIG.apiUrl}/random?${params.toString()}`;
-      const res = await fetchWithApiKey(url);
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('Aucune question trouvée avec ces critères');
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const question = await res.json();
-      if (!question || !question.question) {
-        throw new Error('Format de question invalide');
-      }
-      state.currentQuestion = question;
-      logEvent(`✓ Question chargée: "${question.question.substring(0, 40)}..."`);
-      return question;
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement question:', err);
-      }
-      logEvent('✗ Erreur chargement question: ' + err.message);
-      return null;
-    }
-  }
-
-  // ========================
-  // RENDER BUTTONS
-  // ========================
-
-  /**
-   * Crée les boutons de matière
-   */
-  function renderMatiereButtons() {
-    DOM.matieresGrid.innerHTML = '';
-    state.allMatieres.forEach((matiere, idx) => {
-      const btn = document.createElement('button');
-      btn.textContent = matiere.name;
-      btn.classList.add('slide-up');
-      btn.style.animationDelay = `${idx * 0.05}s`;
-      btn.addEventListener('click', () => selectMatiere(matiere));
-      DOM.matieresGrid.appendChild(btn);
+  // Event listeners
+  questionList.querySelectorAll('.question-item').forEach(item => {
+    item.addEventListener('click', () => {
+      selectQuestion(parseInt(item.dataset.id, 10));
     });
+  });
+}
+
+// ─── Actions ────────────────────────────────────────────────
+async function selectQuestion(id) {
+  const res = await apiCall('/api/game/select-question', 'POST', { questionId: id });
+  if (res.success) showToast('Question sélectionnée', 'success');
+}
+
+async function validateAnswer(index) {
+  const res = await apiCall('/api/game/validate-answer', 'POST', { propositionIndex: index });
+  if (res.success) {
+    showToast(res.data.isCorrect ? 'Bonne réponse !' : 'Mauvaise réponse !', res.data.isCorrect ? 'success' : 'error');
   }
+}
 
-  /**
-   * Crée les boutons de difficulté (filtrés selon la matière)
-   */
-  function renderLevelButtons() {
-    if (!DOM.levelsGrid) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] DOM.levelsGrid n\'existe pas');
-      }
-      logEvent('✗ Erreur: grille de niveaux introuvable');
-      return;
-    }
-    
-    DOM.levelsGrid.innerHTML = '';
-    
-    // Nouveau modèle (MLD): le niveau est porté par le Thème (Theme.idLevel), pas par Matiere.
-    // Donc on affiche tous les niveaux et on filtre ensuite les catégories/thèmes côté API.
-    const availableLevels = state.allLevels;
-    
-    if (availableLevels.length === 0) {
-      logEvent('⚠️ Aucun niveau disponible pour cette matière');
-      if (CONFIG.isDevelopment) {
-        console.warn('[ADMIN] Aucun niveau disponible (liste vide)');
-      }
-      // Afficher un message dans la grille
-      const msg = document.createElement('div');
-      msg.textContent = 'Aucun niveau disponible';
-      msg.style.padding = 'var(--spacing-md)';
-      msg.style.textAlign = 'center';
-      msg.style.color = 'var(--color-text-muted)';
-      DOM.levelsGrid.appendChild(msg);
-      return;
-    }
-    
-    logEvent(`✓ ${availableLevels.length} niveau(x) disponible(s)`);
-    
-    availableLevels.forEach((level, idx) => {
-      const btn = document.createElement('button');
-      btn.textContent = level.name;
-      btn.classList.add('slide-up');
-      btn.style.animationDelay = `${idx * 0.05}s`;
-      btn.addEventListener('click', () => selectLevel(level));
-      DOM.levelsGrid.appendChild(btn);
-    });
+async function revealAnswer() {
+  await apiCall('/api/game/reveal-answer', 'POST');
+}
+
+async function nextStep() {
+  await apiCall('/api/game/next', 'POST');
+}
+
+async function showScores() {
+  await apiCall('/api/game/show-scores', 'POST');
+}
+
+async function resetGame() {
+  if (confirm('Réinitialiser le jeu ? Les scores seront perdus.')) {
+    await apiCall('/api/game/reset', 'POST');
+    showToast('Jeu réinitialisé', 'info');
   }
+}
 
-  /**
-   * Crée les boutons de catégorie
-   */
-  function renderCategoryButtons() {
-    DOM.categoriesGrid.innerHTML = '';
-    state.allCategories.forEach((category, idx) => {
-      const btn = document.createElement('button');
-      btn.textContent = category.name;
-      btn.classList.add('slide-up');
-      btn.style.animationDelay = `${idx * 0.05}s`;
-      btn.addEventListener('click', () => selectCategory(category));
-      DOM.categoriesGrid.appendChild(btn);
-    });
+async function refreshData() {
+  btnRefresh.disabled = true;
+  btnRefresh.textContent = '⟳ Chargement...';
+  const res = await apiCall('/api/data/refresh', 'POST');
+  if (res.success) {
+    await loadAllData();
+    showToast('Données rafraîchies depuis Google Sheets', 'success');
   }
+  btnRefresh.disabled = false;
+  btnRefresh.textContent = '↻ Rafraîchir';
+}
 
-  // ========================
-  // FLOW HANDLERS
-  // ========================
+async function selectRandom() {
+  const body = {};
+  if (filterMatiere.value) body.matiere = filterMatiere.value;
+  if (filterCategory.value) body.category = filterCategory.value;
+  if (filterTheme.value) body.theme = filterTheme.value;
+  if (filterLevel.value) body.level = filterLevel.value;
 
-  const BUTTON_DEBOUNCE_MS = 800;
+  const res = await apiCall('/api/game/select-random', 'POST', body);
+  if (res.success) showToast('Question aléatoire sélectionnée', 'success');
+}
 
-  /**
-   * Démarre une nouvelle sélection (debounce pour éviter double envoi → overlay revient en arrière)
-   */
-  let lastStartSelectionAt = 0;
-  async function startSelection() {
-    if (Date.now() - lastStartSelectionAt < BUTTON_DEBOUNCE_MS) return;
-    lastStartSelectionAt = Date.now();
-
-    logEvent('🎬 Nouvelle sélection lancée');
-    const matiereScope = getMatiereScope();
-    state.screen = matiereScope === MATIERE_SCOPE.HISTOIRE_ONLY ? 'LEVEL_SELECTION' : 'MATIERE_SELECTION';
-    state.selectedMatiere = null;
-    state.selectedLevel = null;
-    state.selectedCategory = null;
-    state.selectedTheme = null;
-    state.currentQuestion = null;
-    state.answerRevealed = false;
-    
-    updateUI();
-    
-    // Charge les matières
-    await loadMatieres();
-    
-    // Envoie la commande à l'overlay
-    sendCommand({ type: 'START_SELECTION' });
-
-    if (matiereScope === MATIERE_SCOPE.HISTOIRE_ONLY) {
-      const histoire = findHistoireMatiere(state.allMatieres);
-      if (!histoire) {
-        logEvent(`✗ Matière "${HISTOIRE_MATIERE_NAME}" introuvable - mode toutes matières activé`);
-        setMatiereScope(MATIERE_SCOPE.ALL);
-        state.screen = 'MATIERE_SELECTION';
-        updateUI();
-        sendCommand({
-          type: 'SHOW_MATIERES_LIST',
-          matieres: state.allMatieres,
-          selectedId: null
-        });
-        return;
-      }
-
-      // Auto-sélection de la matière Histoire
-      state.selectedMatiere = histoire;
-      state.selectedLevel = null;
-      state.selectedCategory = null;
-      state.selectedTheme = null;
-      state.screen = 'LEVEL_SELECTION';
-      updateUI();
-
-      // Affiche la "sélection" côté overlay (Histoire)
-      sendCommand({
-        type: 'SHOW_MATIERES_LIST',
-        matieres: [histoire],
-        selectedId: histoire.id
-      });
-
-      // Charger et afficher les niveaux
-      await new Promise(resolve => setTimeout(resolve, 50));
-      await loadLevels();
-
-      // Afficher les niveaux côté overlay après le délai habituel
-      setTimeout(() => {
-        sendCommand({
-          type: 'SHOW_LEVELS_LIST',
-          levels: state.allLevels,
-          selectedId: null
-        });
-      }, CONFIG.selectionDisplayDelay);
-
-      return;
-    }
-
-    sendCommand({
-      type: 'SHOW_MATIERES_LIST',
-      matieres: state.allMatieres,
-      selectedId: null
-    });
+async function updateScore(delta) {
+  const name = playerNameInput.value.trim();
+  if (!name) {
+    showToast('Entrez un nom de joueur', 'warning');
+    return;
   }
+  await apiCall('/api/game/update-score', 'POST', { playerName: name, delta });
+}
 
-  /**
-   * Sélectionne une matière (debounce pour éviter double envoi de commandes)
-   */
-  let lastMatiereClickAt = 0;
-  async function selectMatiere(matiere) {
-    if (Date.now() - lastMatiereClickAt < SELECTION_DEBOUNCE_MS) return;
-    lastMatiereClickAt = Date.now();
+// ─── Helpers ────────────────────────────────────────────────
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-    logEvent(`📚 Matière sélectionnée: ${matiere.name}`);
-    state.selectedMatiere = matiere;
-    state.selectedLevel = null;
-    state.selectedCategory = null;
-    state.selectedTheme = null;
-    state.screen = 'LEVEL_SELECTION';
-    
-    // Met à jour l'UI immédiatement pour afficher la section de sélection de niveau
-    updateUI();
-    
-    // Petit délai pour s'assurer que la section est visible dans le DOM
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Charge les niveaux (seront filtrés dans renderLevelButtons)
-    await loadLevels();
-    
-    // Force le re-render des boutons après le chargement
-    renderLevelButtons();
-    
-    // Envoie la sélection à l'overlay
-    sendCommand({
-      type: 'SHOW_MATIERES_LIST',
-      matieres: state.allMatieres,
-      selectedId: matiere.id
-    });
-    
-    // Attend avant d'afficher les niveaux côté overlay
-    setTimeout(() => {
-      sendCommand({
-        type: 'SHOW_LEVELS_LIST',
-        levels: state.allLevels,
-        selectedId: null
-      });
-    }, CONFIG.selectionDisplayDelay);
-  }
+// ─── Socket Events ──────────────────────────────────────────
+socket.on('connect', () => {
+  wsStatus.className = 'status-badge connected';
+  console.log('[WS] Connecté');
+});
 
-  /**
-   * Sélectionne une difficulté (debounce pour éviter double-clic → overlay revient aux difficultés)
-   */
-  let lastLevelClickAt = 0;
-  const SELECTION_DEBOUNCE_MS = 800;
-  async function selectLevel(level) {
-    if (Date.now() - lastLevelClickAt < SELECTION_DEBOUNCE_MS) return;
-    lastLevelClickAt = Date.now();
+socket.on('disconnect', () => {
+  wsStatus.className = 'status-badge disconnected';
+  console.log('[WS] Déconnecté');
+});
 
-    logEvent(`🎯 Difficulté sélectionnée: ${level.name}`);
-    state.selectedLevel = level;
-    state.selectedCategory = null;
-    state.selectedTheme = null;
-    state.screen = 'CATEGORY_SELECTION';
-    
-    // Charge les catégories (filtrées par matière)
-    await loadCategories();
-    
-    // Envoie la sélection à l'overlay
-    sendCommand({
-      type: 'SHOW_LEVELS_LIST',
-      levels: state.allLevels,
-      selectedId: level.id
-    });
-    
-    // Attend avant d'afficher les catégories côté overlay
-    setTimeout(() => {
-      updateUI();
-      sendCommand({
-        type: 'SHOW_CATEGORIES_LIST',
-        categories: state.allCategories
-      });
-    }, CONFIG.selectionDisplayDelay);
-  }
+socket.on('game:state-update', (state) => {
+  updateGameUI(state);
+});
 
-  /**
-   * Sélectionne une catégorie (debounce pour éviter double envoi)
-   */
-  let lastCategoryClickAt = 0;
-  async function selectCategory(category) {
-    if (Date.now() - lastCategoryClickAt < SELECTION_DEBOUNCE_MS) return;
-    lastCategoryClickAt = Date.now();
+socket.on('data:refreshed', (info) => {
+  loadAllData();
+});
 
-    logEvent(`📂 Catégorie sélectionnée: ${category.name}`);
-    state.selectedCategory = category;
-    state.selectedTheme = null;
-    state.screen = 'THEME_SELECTION';
-    
-    // Charge les thèmes pour cette catégorie
-    const themes = await loadThemesForCategory(category.id);
-    
-    // Envoie la sélection à l'overlay
-    sendCommand({
-      type: 'SHOW_CATEGORIES_LIST',
-      categories: state.allCategories,
-      selectedId: category.id
-    });
-    
-    // Attend avant d'afficher le bouton de tirage thème côté admin
-    setTimeout(() => {
-      updateUI();
-    }, CONFIG.selectionDisplayDelay);
-  }
+// ─── Event Listeners ────────────────────────────────────────
+btnRefresh.addEventListener('click', refreshData);
+btnReveal.addEventListener('click', revealAnswer);
+btnNext.addEventListener('click', nextStep);
+btnScores.addEventListener('click', showScores);
+btnReset.addEventListener('click', resetGame);
+btnRandom.addEventListener('click', selectRandom);
+btnAddPoint.addEventListener('click', () => updateScore(1));
+btnRemovePoint.addEventListener('click', () => updateScore(-1));
 
-  /**
-   * Tire un thème aléatoire (debounce pour éviter double envoi)
-   */
-  let lastDrawThemeAt = 0;
-  function drawTheme() {
-    if (Date.now() - lastDrawThemeAt < BUTTON_DEBOUNCE_MS) return;
-    lastDrawThemeAt = Date.now();
+filterMatiere.addEventListener('change', renderQuestionList);
+filterCategory.addEventListener('change', renderQuestionList);
+filterTheme.addEventListener('change', renderQuestionList);
+filterLevel.addEventListener('change', renderQuestionList);
 
-    if (!state.allThemes || state.allThemes.length === 0) {
-      logEvent('✗ Aucun thème disponible');
-      alert('Aucun thème disponible pour cette catégorie');
-      return;
-    }
-    
-    const randomTheme = state.allThemes[Math.floor(Math.random() * state.allThemes.length)];
-    logEvent(`🎨 Thème tiré: ${randomTheme.name}`);
-    state.selectedTheme = randomTheme;
-    state.screen = 'QUESTION_WAITING';
-    
-    // Envoie le thème à l'overlay
-    sendCommand({
-      type: 'SHOW_THEME',
-      theme: randomTheme,
-      matiere: state.selectedMatiere,
-      level: state.selectedLevel,
-      category: state.selectedCategory
-    });
-    
-    updateUI();
-  }
-
-  /**
-   * Lance une question (debounce pour éviter double envoi)
-   * Si aucune question n'est disponible pour le thème, relance automatiquement le tirage de thème
-   * Si aucune question n'est disponible après plusieurs tentatives, relance automatiquement la sélection complète
-   */
-  let lastLaunchQuestionAt = 0;
-  async function launchQuestion(maxRetries = 5) {
-    if (maxRetries === 5 && Date.now() - lastLaunchQuestionAt < BUTTON_DEBOUNCE_MS) return;
-    if (maxRetries === 5) lastLaunchQuestionAt = Date.now();
-
-    logEvent('🚀 Lancement d\'une question...');
-    
-    const question = await loadRandomQuestion();
-    if (!question) {
-      // Si aucune question trouvée et qu'on a encore des tentatives
-      if (maxRetries > 0 && state.allThemes && state.allThemes.length > 0) {
-        logEvent('⚠️ Aucune question pour ce thème, nouveau tirage...');
-        
-        // Relancer le tirage de thème
-        const randomTheme = state.allThemes[Math.floor(Math.random() * state.allThemes.length)];
-        logEvent(`🎨 Nouveau thème tiré: ${randomTheme.name}`);
-        state.selectedTheme = randomTheme;
-        state.screen = 'QUESTION_WAITING';
-        
-        // Envoie le nouveau thème à l'overlay
-        sendCommand({
-          type: 'SHOW_THEME',
-          theme: randomTheme,
-          matiere: state.selectedMatiere,
-          level: state.selectedLevel,
-          category: state.selectedCategory
-        });
-        
-        updateUI();
-        
-        // Réessayer avec le nouveau thème (avec une limite pour éviter la boucle infinie)
-        await new Promise(resolve => setTimeout(resolve, 500)); // Petit délai avant de réessayer
-        return launchQuestion(maxRetries - 1);
-      } else {
-        // Plus de tentatives ou plus de thèmes disponibles - relance automatiquement la sélection
-        logEvent('⚠️ Aucune question disponible après plusieurs tentatives - relance automatique de la sélection');
-        
-        // Petit délai avant de relancer pour laisser le temps de voir le message
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Relance automatiquement la sélection complète
-        await startSelection();
-        return;
-      }
-    }
-    
-    state.screen = 'QUESTION_ACTIVE';
-    state.answerRevealed = false;
-    
-    // Envoie la question à l'overlay
-    sendCommand({
-      type: 'LOAD_QUESTION',
-      question: question,
-      matiere: state.selectedMatiere,
-      level: state.selectedLevel,
-      category: state.selectedCategory,
-      theme: state.selectedTheme
-    });
-    
-    updateUI();
-  }
-
-  /**
-   * Sélectionne une réponse (depuis les boutons A/B/C/D)
-   */
-  function selectAnswerButton(index) {
-    if (!state.currentQuestion) {
-      alert('Aucune question active');
-      return;
-    }
-    
-    const keyLabels = ['A', 'B', 'C', 'D'];
-    logEvent(`🔘 Réponse sélectionnée: ${keyLabels[index]}`);
-    state.currentQuestion.selectedByAdmin = index;
-    updateCurrentQuestion(state.currentQuestion);
-    
-    // Envoie la sélection à l'overlay
-    sendCommand({
-      type: 'HIGHLIGHT_ANSWER',
-      index: index
-    });
-  }
-
-  /**
-   * Révèle la réponse (debounce pour éviter double envoi)
-   */
-  let lastRevealAnswerAt = 0;
-  function revealAnswer() {
-    if (Date.now() - lastRevealAnswerAt < 500) return;
-    lastRevealAnswerAt = Date.now();
-
-    if (!state.currentQuestion) {
-      alert('Aucune question active');
-      return;
-    }
-
-    logEvent('✅ Réponse révélée');
-    state.answerRevealed = true;
-    updateCurrentQuestion(state.currentQuestion);
-    sendCommand({ type: 'REVEAL_ANSWER' });
-  }
-
-  /**
-   * Lance une nouvelle question du même thème
-   */
-  async function newQuestion() {
-    logEvent('📋 Nouvelle question du même thème');
-    await launchQuestion();
-  }
-
-  /**
-   * Redémarre une nouvelle sélection
-   */
-  async function restartSelection() {
-    logEvent('🎬 Redémarrage avec nouvelle sélection');
-    await startSelection();
-  }
-
-  // ========================
-  // EVENT LISTENERS
-  // ========================
-
-  function setupEventListeners() {
-    if (DOM.apiKeyInput && DOM.btnSaveApiKey) {
-      const stored = localStorage.getItem('quiz-api-key');
-      if (stored) DOM.apiKeyInput.value = stored;
-      DOM.btnSaveApiKey.addEventListener('click', () => {
-        const key = (DOM.apiKeyInput.value || '').trim();
-        if (key) {
-          localStorage.setItem('quiz-api-key', key);
-          CONFIG.apiKey = key;
-          logEvent('✓ Clé API enregistrée');
-        } else {
-          localStorage.removeItem('quiz-api-key');
-          CONFIG.apiKey = '';
-          logEvent('Clé API supprimée (mode sans clé)');
-        }
-      });
-    }
-    DOM.btnStartSelection.addEventListener('click', startSelection);
-    DOM.btnDrawTheme.addEventListener('click', drawTheme);
-    DOM.btnLaunchQuestion.addEventListener('click', launchQuestion);
-    DOM.btnRevealAnswer.addEventListener('click', revealAnswer);
-    DOM.btnNewQuestion.addEventListener('click', newQuestion);
-    DOM.btnRestartSelection.addEventListener('click', restartSelection);
-    if (DOM.btnRestartSelectionAlways) {
-      DOM.btnRestartSelectionAlways.addEventListener('click', restartSelection);
-    }
-    
-    // Ajoute les boutons A/B/C/D en section active pour sélectionner la réponse
-    const keyLabels = ['A', 'B', 'C', 'D'];
-    const buttonContainer = document.createElement('div');
-    buttonContainer.id = 'answer-selection-buttons';
-    buttonContainer.style.display = 'none';
-    buttonContainer.style.marginTop = 'var(--spacing-md)';
-    buttonContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
-    buttonContainer.style.gap = 'var(--spacing-md)';
-    buttonContainer.style.display = 'grid';
-    
-    keyLabels.forEach((label, idx) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.classList.add('slide-up');
-      btn.style.animationDelay = `${idx * 0.1}s`;
-      btn.style.padding = 'var(--spacing-md)';
-      btn.style.minWidth = '50px';
-      btn.style.fontWeight = 'var(--font-weight-bold)';
-      btn.addEventListener('click', () => selectAnswerButton(idx));
-      buttonContainer.appendChild(btn);
-    });
-    
-    DOM.questionActiveSection.appendChild(buttonContainer);
-  }
-
-  // ========================
-  // INITIALIZATION
-  // ========================
-
-  function init() {
-    if (CONFIG.isDevelopment) {
-      console.log('[ADMIN] Démarrage de l\'admin');
-    }
-    initChannel();
-    initMatiereScopeSelect();
-    setupEventListeners();
-    updateUI();
-    logEvent('✓ Admin prêt');
-  }
-
-  // Lance l'initialisation
-  init();
-})();
+// ─── Init ───────────────────────────────────────────────────
+loadAllData();

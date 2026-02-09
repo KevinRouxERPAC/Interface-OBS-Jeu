@@ -3,186 +3,122 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Quiz</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <title>Admin - Qui veut passer pour un teubé</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <!-- ==================== LEFT PANEL: CONTRÔLES ==================== -->
-    <div class="panel">
-      <div class="panel-title">🎮 Contrôles</div>
-
-      <!-- Statut global -->
-      <div class="status-indicator">
-        <span class="status-dot connected" id="status-dot"></span>
-        <span id="status-text">État: EN ATTENTE</span>
-      </div>
-
-      <!-- Options -->
-      <div class="admin-options">
-        <div class="admin-options-title">Options</div>
-        <label class="admin-option-row" for="matiere-scope">
-          <span class="admin-option-label">Matières</span>
-          <select id="matiere-scope" class="admin-option-select">
-            <option value="ALL">Toutes les matières</option>
-            <option value="HISTOIRE_ONLY">Uniquement Histoire</option>
-          </select>
-        </label>
-        <div class="admin-option-row">
-          <span class="admin-option-label">Clé API</span>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="password" id="api-key-input" class="admin-option-select" placeholder="Même clé que sur le serveur" autocomplete="off" style="flex: 1;">
-            <button type="button" id="btn-save-api-key" class="btn-primary">Enregistrer</button>
-          </div>
-          <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">Requis en production. Définie côté serveur (Fly: <code>fly secrets set API_KEY=...</code>).</p>
-        </div>
-      </div>
-      
-      <!-- Boutons permanents -->
-      <div class="admin-buttons-persistent">
-        <button class="btn-primary" id="btn-restart-selection-always" type="button">
-          🎬 Relancer une sélection
-        </button>
-      </div>
-
-      <!-- ===== SECTION: ATTENTE ===== -->
-      <div id="section-waiting" class="fade-in">
-        <div class="status-badge glow-pulse">État: ATTENTE</div>
-        <p>
-          En attente de sélection. Cliquez sur le bouton ci-dessous pour démarrer le quiz.
-        </p>
-        <button class="btn-primary" id="btn-start-selection">
-          🎬 Nouvelle Sélection
-        </button>
-      </div>
-
-      <!-- ===== SECTION: SÉLECTION MATIÈRE ===== -->
-      <div id="section-matiere-selection" class="screen-transition" style="display: none;">
-        <div class="status-badge">État: SÉLECTION MATIÈRE</div>
-        <p>
-          Choisissez une matière.
-        </p>
-        <div class="buttons-grid" id="matieres-grid"></div>
-      </div>
-
-      <!-- ===== SECTION: SÉLECTION DIFFICULTÉ ===== -->
-      <div id="section-level-selection" class="screen-transition" style="display: none;">
-        <div class="status-badge">État: SÉLECTION DIFFICULTÉ</div>
-        <div class="selection-display">
-          Matière: <strong id="display-matiere">-</strong>
-        </div>
-        <p>
-          Choisissez un niveau de difficulté.
-        </p>
-        <div class="buttons-grid" id="levels-grid"></div>
-      </div>
-
-      <!-- ===== SECTION: SÉLECTION CATÉGORIE ===== -->
-      <div id="section-category-selection" class="screen-transition" style="display: none;">
-        <div class="status-badge">État: SÉLECTION CATÉGORIE</div>
-        <div class="selection-display">
-          Matière: <strong id="display-matiere-2">-</strong> | Difficulté: <strong id="display-level">-</strong>
-        </div>
-        <p>
-          Choisissez une catégorie.
-        </p>
-        <div class="buttons-grid" id="categories-grid"></div>
-      </div>
-
-      <!-- ===== SECTION: SÉLECTION THÈME ===== -->
-      <div id="section-theme-selection" class="screen-transition" style="display: none;">
-        <div class="status-badge">État: SÉLECTION THÈME</div>
-        <div class="selection-display">
-          Matière: <strong id="display-matiere-3">-</strong> | Difficulté: <strong id="display-level-2">-</strong> | Catégorie: <strong id="display-category">-</strong>
-        </div>
-        <p>
-          Tirez un thème aléatoire.
-        </p>
-        <button class="btn-primary" id="btn-draw-theme">
-          🎲 Tirer un Thème
-        </button>
-      </div>
-
-      <!-- ===== SECTION: ATTENTE QUESTION ===== -->
-      <div id="section-question-waiting" class="screen-transition" style="display: none;">
-        <div class="status-badge">État: ATTENTE QUESTION</div>
-        <div class="selection-display">
-          Matière: <strong id="display-matiere-4">-</strong> | 
-          Difficulté: <strong id="display-level-3">-</strong> | 
-          Catégorie: <strong id="display-category-2">-</strong> | 
-          Thème: <strong id="display-theme">-</strong>
-        </div>
-        <p>
-          Prêt à lancer une question.
-        </p>
-        <button class="btn-primary" id="btn-launch-question">
-          🚀 Lancer la Question
-        </button>
-      </div>
-
-      <!-- ===== SECTION: QUESTION EN COURS ===== -->
-      <div id="section-question-active" class="screen-transition" style="display: none;">
-        <div class="status-badge glow-pulse">État: QUESTION EN COURS</div>
-        <div class="selection-display">
-          Réponse correcte: <strong id="display-correct-answer">-</strong>
-        </div>
-        <p>
-          Gérez la question actuelle.
-        </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
-          <button id="btn-reveal-answer" class="btn-success">✅ Révéler Réponse</button>
-          <button id="btn-new-question">📋 Nouvelle Question</button>
-          <button id="btn-restart-selection" style="grid-column: 1/-1;">🎬 Nouvelle Sélection</button>
-        </div>
-      </div>
+  <!-- ─── Header ─────────────────────────────────────── -->
+  <header id="header">
+    <div class="header-left">
+      <h1>Qui veut passer pour un teub&eacute;</h1>
+      <span class="subtitle">Interface d'administration</span>
     </div>
-
-    <!-- ==================== RIGHT PANEL: INFORMATIONS ==================== -->
-    <div class="panel panel-informations">
-      <div class="panel-title">📊 Informations</div>
-
-      <!-- Bloc Infos générales -->
-      <div class="admin-block admin-block-infos">
-        <h3 class="admin-block-title">Infos générales</h3>
-        <div class="admin-infos-inner" id="current-state">
-          <div class="admin-info-tags" id="admin-info-tags"></div>
-          <p class="admin-theme-desc" id="admin-theme-desc"></p>
-        </div>
+    <div class="header-right">
+      <div class="status-indicators">
+        <span id="ws-status" class="status-badge disconnected" title="WebSocket">
+          <span class="status-dot"></span> WS
+        </span>
+        <span id="gs-status" class="status-badge disconnected" title="Google Sheets">
+          <span class="status-dot"></span> GSheets
+        </span>
       </div>
-
-      <!-- Bloc Question -->
-      <div class="admin-block admin-block-question">
-        <h3 class="admin-block-title">Question</h3>
-        <div class="admin-question-inner fade-in" id="current-question">
-          <em class="text-muted">Aucune question chargée</em>
-        </div>
-      </div>
-
-      <!-- Bloc Propositions -->
-      <div class="admin-block admin-block-propositions" id="admin-block-propositions" style="display: none;">
-        <h3 class="admin-block-title">Propositions</h3>
-        <div class="admin-propositions-inner" id="admin-propositions"></div>
-      </div>
-
-      <!-- Bloc Explication (visible après révélation) -->
-      <div class="admin-block admin-block-explication" id="admin-block-explication" style="display: none;">
-        <h3 class="admin-block-title">Explication</h3>
-        <div class="admin-explication-inner" id="admin-explication"></div>
-      </div>
-
-      <!-- Journal -->
-      <div class="admin-block admin-block-journal">
-        <h3 class="admin-block-title">Journal</h3>
-        <div class="data-display fade-in" id="event-log">
-          <em class="text-muted">En attente d'événements...</em>
-        </div>
-      </div>
+      <button id="btn-refresh-data" class="btn btn-secondary" title="Rafraîchir les données">
+        &#x21BB; Rafra&icirc;chir
+      </button>
     </div>
-  </div>
+  </header>
 
-  <script src="admin.js?v=3"></script>
+  <!-- ─── Dashboard ──────────────────────────────────── -->
+  <main>
+    <section id="dashboard" class="panel">
+      <h2>Tableau de bord</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-questions">0</div>
+          <div class="stat-label">Questions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-themes">0</div>
+          <div class="stat-label">Th&egrave;mes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-asked">0</div>
+          <div class="stat-label">Pos&eacute;es</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-state">Attente</div>
+          <div class="stat-label">&Eacute;tat du jeu</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Game Controls ────────────────────────────── -->
+    <section id="game-controls" class="panel">
+      <h2>Contr&ocirc;les du jeu</h2>
+
+      <!-- Current Question Display -->
+      <div id="current-question-display" class="current-question hidden">
+        <h3 id="cq-title">Question en cours</h3>
+        <p id="cq-text" class="question-text"></p>
+        <div id="cq-meta" class="question-meta"></div>
+        <div id="cq-propositions" class="propositions-grid"></div>
+        <p id="cq-explanation" class="explanation hidden"></p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="btn-reveal" class="btn btn-warning" disabled>R&eacute;v&eacute;ler la r&eacute;ponse</button>
+        <button id="btn-next" class="btn btn-primary" disabled>Suivant</button>
+        <button id="btn-scores" class="btn btn-info">Scores</button>
+        <button id="btn-reset" class="btn btn-danger">R&eacute;initialiser</button>
+      </div>
+    </section>
+
+    <!-- ─── Scores ───────────────────────────────────── -->
+    <section id="scores-panel" class="panel">
+      <h2>Scores</h2>
+      <div class="scores-form">
+        <input type="text" id="player-name" placeholder="Nom du joueur" class="input">
+        <button id="btn-add-point" class="btn btn-success">+1</button>
+        <button id="btn-remove-point" class="btn btn-danger">-1</button>
+      </div>
+      <div id="scores-list" class="scores-list">
+        <p class="empty-state">Aucun score pour l'instant</p>
+      </div>
+    </section>
+
+    <!-- ─── Question Selector ────────────────────────── -->
+    <section id="question-selector" class="panel">
+      <h2>S&eacute;lection de question</h2>
+
+      <!-- Filters -->
+      <div class="filters">
+        <select id="filter-matiere" class="select">
+          <option value="">Toutes les mati&egrave;res</option>
+        </select>
+        <select id="filter-category" class="select">
+          <option value="">Toutes les cat&eacute;gories</option>
+        </select>
+        <select id="filter-theme" class="select">
+          <option value="">Tous les th&egrave;mes</option>
+        </select>
+        <select id="filter-level" class="select">
+          <option value="">Tous les niveaux</option>
+        </select>
+        <button id="btn-random" class="btn btn-primary">Question al&eacute;atoire</button>
+      </div>
+
+      <!-- Question List -->
+      <div id="question-list" class="question-list">
+        <p class="empty-state">Chargement des questions...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ─── Toast / Notification ───────────────────────── -->
+  <div id="toast-container"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>

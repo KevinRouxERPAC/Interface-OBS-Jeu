@@ -3,108 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiz Overlay</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="design-system.css">
+  <title>Overlay - Qui veut passer pour un teubé</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="overlay" id="overlay">
-    <!-- Indicateur de connexion (haut droit) -->
-    <div class="connection-status" id="connection-status" style="display: none;">
-      <span class="dot"></span>
-      <span class="text">Synchro...</span>
+  <div id="overlay-container">
+
+    <!-- ─── Écran d'attente ──────────────────────────── -->
+    <div id="screen-waiting" class="screen active">
+      <div class="waiting-content">
+        <h1 class="game-title">Qui veut passer<br>pour un teub&eacute; ?</h1>
+        <div class="waiting-pulse"></div>
+      </div>
     </div>
-    
-    <!-- Panel principal (question/sélection) -->
-    <div class="panel" id="panel">
-      <img src="image/logo.png" alt="Logo" class="logo-channel">
-      <div class="panel-header flex-center">
-        <div class="badge glow-pulse">Qui veut passer pour un teubé ?</div>
+
+    <!-- ─── Écran Question ───────────────────────────── -->
+    <div id="screen-question" class="screen">
+      <div class="question-container">
+        <div class="question-header">
+          <span id="q-counter" class="q-counter">Question 1</span>
+          <div id="q-tags" class="q-tags"></div>
+        </div>
+        <div id="q-text" class="q-text"></div>
+        <div id="q-propositions" class="q-propositions"></div>
       </div>
-      
-      <!-- ===== ÉCRAN D'ATTENTE ===== -->
-      <div id="waiting-screen" class="screen-transition">
-        <div class="question text-glow-blue fade-in">🎯 Quiz Interactif</div>
-        <div class="answers flex-center" style="margin-top: 20px;">
-          <div class="answer card" style="flex: 0 1 auto;">
-            <span class="text text-muted">En attente de sélection...</span>
-          </div>
+    </div>
+
+    <!-- ─── Écran Réponse ────────────────────────────── -->
+    <div id="screen-answer" class="screen">
+      <div class="answer-container">
+        <div class="question-header">
+          <span id="a-counter" class="q-counter">Question 1</span>
         </div>
+        <div id="a-text" class="q-text"></div>
+        <div id="a-propositions" class="q-propositions"></div>
+        <div id="a-result" class="result-banner hidden"></div>
+        <div id="a-explanation" class="explanation hidden"></div>
       </div>
-      
-      <!-- ===== ÉCRAN DE SÉLECTION ===== -->
-      <div id="selection-screen" class="screen-transition" style="display: none;">
-        <!-- Titre de sélection -->
-        <h2 class="selection-title text-glow-blue fade-in" id="selection-title">🎯 Choisissez</h2>
-        <div class="selection-info text-muted" id="selection-info"></div>
-        
-        <!-- Liste des matières/niveaux/catégories (format réponses) -->
-        <div class="answers" id="selection-buttons"></div>
-      </div>
-      
-      <!-- ===== ÉCRAN DE THÈME ===== -->
-      <div id="theme-screen" class="screen-transition" style="display: none;">
-        <h2 class="selection-title text-glow-purple fade-in">🎨 Thème sélectionné</h2>
-        <div id="theme-content" class="flex-column flex-center fade-in" style="margin: 20px 0;">
-          <div class="text-muted" style="font-size: 14px; margin-bottom: 12px;">
-            <span id="theme-breadcrumb">Lycée | Moderne</span>
-          </div>
-          <div class="text-glow-gold" style="font-size: 32px; font-weight: 700;">
-            <span id="theme-name">La Révolution Française</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- ===== ÉCRAN DE QUESTION ===== -->
-      <div id="question-screen" class="screen-transition" style="display: none;">
-        <!-- Tags de sélection (matière | difficulté | catégorie | thème) -->
-        <div class="selection-info-panel flex-center" id="selection-info-panel">
-          <div class="selection-tag card glow-blue">📚 <span id="info-matiere">-</span></div>
-          <div class="selection-tag card glow-blue">🎯 <span id="info-level">-</span></div>
-          <div class="selection-tag card glow-purple">📂 <span id="info-category">-</span></div>
-          <div class="selection-tag card glow-gold">🎨 <span id="info-theme">-</span></div>
-        </div>
-        
-        <!-- Question -->
-        <div class="question text-glow-blue fade-in" id="question">En attente d'une question...</div>
-        
-        <!-- Propositions -->
-        <div class="answers" id="answers">
-          <button class="answer card slide-up" data-index="0">
-            <span class="key">A</span>
-            <span class="text">---</span>
-          </button>
-          <button class="answer card slide-up" data-index="1" style="animation-delay: 0.1s;">
-            <span class="key">B</span>
-            <span class="text">---</span>
-          </button>
-          <button class="answer card slide-up" data-index="2" style="animation-delay: 0.2s;">
-            <span class="key">C</span>
-            <span class="text">---</span>
-          </button>
-          <button class="answer card slide-up" data-index="3" style="animation-delay: 0.3s;">
-            <span class="key">D</span>
-            <span class="text">---</span>
-          </button>
-        </div>
-        
-        <!-- Explication (affichée après révélation) -->
-        <div id="question-explanation" class="card fade-in" style="display: none; margin-top: 12px; border-left: 3px solid var(--color-primary-neon-blue);">
-          <div class="text-glow-blue" style="font-size: 13px; font-weight: 600;">💡 Explication:</div>
-          <div class="text-muted" style="font-size: 13px; margin-top: 6px;" id="explanation-text"></div>
-        </div>
-        
-        <!-- Timer -->
-        <div class="timer-bar-bottom">
-          <div class="timer-fill" id="timer-fill"></div>
-          <span class="timer-text" id="timer-text">30s</span>
-        </div>
+    </div>
+
+    <!-- ─── Écran Scores ─────────────────────────────── -->
+    <div id="screen-scores" class="screen">
+      <div class="scores-container">
+        <h2 class="scores-title">Tableau des scores</h2>
+        <div id="scores-board" class="scores-board"></div>
       </div>
     </div>
   </div>
-  <script src="script.js?v=4"></script>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="overlay.js"></script>
 </body>
 </html>
