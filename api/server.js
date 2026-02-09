@@ -27,6 +27,17 @@ const { google } = require('googleapis');
 
 const router = express.Router();
 const logger = new Logger(config.logLevel);
+// #region agent log
+const DEBUG_LOG_PATH = path.join(__dirname, '..', '.cursor', 'debug.log');
+function agentLog(payload) {
+  try {
+    const dir = path.dirname(DEBUG_LOG_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const line = JSON.stringify({ ...payload, timestamp: Date.now() }) + '\n';
+    fs.appendFileSync(DEBUG_LOG_PATH, line);
+  } catch (_) {}
+}
+// #endregion
 
 // En-têtes de sécurité (aucune requête en plus)
 router.use((_req, res, next) => {
@@ -772,7 +783,9 @@ router.get('/themes', async (req, res) => {
 router.get('/random', async (req, res) => {
   try {
     const { matiereId, levelId, categoryId, themeId } = req.query;
-    
+    // #region agent log
+    agentLog({ hypothesisId: 'H1', location: 'api/server.js:random:entry', message: 'GET /random', data: { matiereId, levelId, categoryId, themeId } });
+    // #endregion
     // Valider les IDs si fournis
     if (matiereId && !validateId(String(matiereId))) {
       return res.status(400).json({ error: 'ID de matière invalide' });
@@ -806,7 +819,9 @@ router.get('/random', async (req, res) => {
     } else {
       questions = loadQuestions();
     }
-    
+    // #region agent log
+    agentLog({ hypothesisId: 'H2', location: 'api/server.js:random:afterLoad', message: 'questions loaded', data: { count: questions.length, sheetsConfigured } });
+    // #endregion
     // Filtrer selon les critères
     // Filtrer par matière via la catégorie
     if (matiereId) {
@@ -840,9 +855,14 @@ router.get('/random', async (req, res) => {
     if (themeId) {
       questions = questions.filter(q => String(q.idTheme) === String(themeId));
     }
-    
+    // #region agent log
+    agentLog({ hypothesisId: 'H3', location: 'api/server.js:random:afterFilters', message: 'after all filters', data: { count: questions.length, matiereId, levelId, categoryId, themeId } });
+    // #endregion
     if (!questions.length) {
       logger.warn('API', 'Aucune question trouvée avec critères', { matiereId, levelId, categoryId, themeId });
+      // #region agent log
+      agentLog({ hypothesisId: 'H4', location: 'api/server.js:random:404', message: 'returning 404 no match', data: { matiereId, levelId, categoryId, themeId } });
+      // #endregion
       return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
     }
     
