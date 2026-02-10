@@ -1,36 +1,5 @@
-/* ─── Variables (thème dark flat moderne) ──────── */
-:root {
-  /* Palette principale : dark slate + accent turquoise */
-  --bg-primary: radial-gradient(circle at top, #050811 0%, #05060a 40%, #020309 100%);
-  --bg-secondary: #090e1a;
-  --bg-panel: rgba(13, 18, 32, 0.96);
-  --bg-card: rgba(17, 24, 40, 0.98);
-
-  /* Accent moderne (turquoise / teal) */
-  --accent: #38bdf8;          /* bleu-cyan vif */
-  --accent-hover: #0ea5e9;
-  --primary: #38bdf8;
-  --primary-hover: #0ea5e9;
-
-  /* Anciennes variables "gold" conservées mais mappées sur l'accent pour cohérence visuelle */
-  --gold: #38bdf8;
-  --gold-dark: #0ea5e9;
-  --gold-light: #7dd3fc;
-
-  /* États */
-  --success: #22c55e;
-  --warning: #facc15;
-  --danger: #f97373;
-  --info: #60a5fa;
-
-  /* Texte & bordures */
-  --text: #e5e7eb;
-  --text-muted: #9ca3af;
-  --border: #1f2937;
-
-  --radius: 12px;
-  --shadow: 0 18px 45px rgba(0, 0, 0, 0.65);
-}
+/* ─── Variables (thème "Qui veut gagner des millions") ──────── */
+REPLACEME
 
 /* ─── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -613,3 +582,4 @@ main {
     width: 100%;
   }
 }
+

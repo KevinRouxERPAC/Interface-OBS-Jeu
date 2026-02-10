@@ -28,91 +28,87 @@
     </div>
   </header>
 
-  <!-- ─── Dashboard ──────────────────────────────────── -->
+  <!-- ─── Layout principal en 2 colonnes ───────────────────── -->
   <main>
-    <section id="dashboard" class="panel">
-      <h2>Tableau de bord</h2>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value" id="stat-questions">0</div>
-          <div class="stat-label">Questions</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-themes">0</div>
-          <div class="stat-label">Th&egrave;mes</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-asked">0</div>
-          <div class="stat-label">Pos&eacute;es</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-state">Attente</div>
-          <div class="stat-label">&Eacute;tat du jeu</div>
-        </div>
-      </div>
-    </section>
+    <div class="layout-grid">
+      <!-- Colonne gauche : vue émission (dashboard + contrôle + scores) -->
+      <div class="layout-left">
+        <section id="dashboard" class="panel panel-dashboard">
+          <h2>Tableau de bord</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-questions">0</div>
+              <div class="stat-label">Questions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-themes">0</div>
+              <div class="stat-label">Th&egrave;mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-asked">0</div>
+              <div class="stat-label">Pos&eacute;es</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-state">Attente</div>
+              <div class="stat-label">&Eacute;tat du jeu</div>
+            </div>
+          </div>
+        </section>
 
-    <!-- ─── Game Controls ────────────────────────────── -->
-    <section id="game-controls" class="panel">
-      <h2>Contr&ocirc;les du jeu</h2>
+        <!-- ─── Game Controls ────────────────────────────── -->
+        <section id="game-controls" class="panel panel-game">
+          <h2>Contr&ocirc;les du jeu</h2>
 
-      <!-- Current Question Display -->
-      <div id="current-question-display" class="current-question hidden">
-        <h3 id="cq-title">Question en cours</h3>
-        <p id="cq-text" class="question-text"></p>
-        <div id="cq-meta" class="question-meta"></div>
-        <div id="cq-propositions" class="propositions-grid"></div>
-        <p id="cq-explanation" class="explanation hidden"></p>
-      </div>
+          <!-- Current Question Display -->
+          <div id="current-question-display" class="current-question hidden">
+            <h3 id="cq-title">Question en cours</h3>
+            <p id="cq-text" class="question-text"></p>
+            <div id="cq-meta" class="question-meta"></div>
+            <div id="cq-propositions" class="propositions-grid"></div>
+            <p id="cq-explanation" class="explanation hidden"></p>
+          </div>
 
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <button id="btn-reveal" class="btn btn-warning" disabled>R&eacute;v&eacute;ler la r&eacute;ponse</button>
-        <button id="btn-next" class="btn btn-primary" disabled>Suivant</button>
-        <button id="btn-scores" class="btn btn-info">Scores</button>
-        <button id="btn-reset" class="btn btn-danger">R&eacute;initialiser</button>
-      </div>
-    </section>
-
-    <!-- ─── Scores ───────────────────────────────────── -->
-    <section id="scores-panel" class="panel">
-      <h2>Scores</h2>
-      <div class="scores-form">
-        <input type="text" id="player-name" placeholder="Nom du joueur" class="input">
-        <button id="btn-add-point" class="btn btn-success">+1</button>
-        <button id="btn-remove-point" class="btn btn-danger">-1</button>
-      </div>
-      <div id="scores-list" class="scores-list">
-        <p class="empty-state">Aucun score pour l'instant</p>
-      </div>
-    </section>
-
-    <!-- ─── Question Selector ────────────────────────── -->
-    <section id="question-selector" class="panel">
-      <h2>S&eacute;lection de question</h2>
-
-      <!-- Filters -->
-      <div class="filters">
-        <select id="filter-matiere" class="select">
-          <option value="">Toutes les mati&egrave;res</option>
-        </select>
-        <select id="filter-category" class="select">
-          <option value="">Toutes les cat&eacute;gories</option>
-        </select>
-        <select id="filter-theme" class="select">
-          <option value="">Tous les th&egrave;mes</option>
-        </select>
-        <select id="filter-level" class="select">
-          <option value="">Tous les niveaux</option>
-        </select>
-        <button id="btn-random" class="btn btn-primary">Question al&eacute;atoire</button>
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button id="btn-reveal" class="btn btn-warning" disabled>R&eacute;v&eacute;ler la r&eacute;ponse</button>
+            <button id="btn-next" class="btn btn-primary" disabled>Suivant</button>
+            <button id="btn-reset" class="btn btn-danger">R&eacute;initialiser</button>
+          </div>
+        </section>
       </div>
 
-      <!-- Question List -->
-      <div id="question-list" class="question-list">
-        <p class="empty-state">Chargement des questions...</p>
+      <!-- Colonne droite : sélection guidée (visible sur l'overlay) + liste -->
+      <div class="layout-right">
+        <section id="guided-selection" class="panel panel-guided">
+          <h2>S&eacute;lection guid&eacute;e <span class="panel-badge">Overlay</span></h2>
+          <p class="guided-desc">Chaque &eacute;tape est affich&eacute;e sur l'overlay pour les viewers.</p>
+          <div id="guided-steps" class="guided-steps">
+            <!-- Rempli par admin.js depuis selectionState -->
+          </div>
+        </section>
+        <section id="question-selector" class="panel panel-questions">
+          <h2>S&eacute;lection rapide</h2>
+          <div class="filters">
+            <select id="filter-matiere" class="select">
+              <option value="">Toutes les mati&egrave;res</option>
+            </select>
+            <select id="filter-category" class="select">
+              <option value="">Toutes les cat&eacute;gories</option>
+            </select>
+            <select id="filter-theme" class="select">
+              <option value="">Tous les th&egrave;mes</option>
+            </select>
+            <select id="filter-level" class="select">
+              <option value="">Tous les niveaux</option>
+            </select>
+            <button id="btn-random" class="btn btn-primary">Question al&eacute;atoire</button>
+          </div>
+          <div id="question-list" class="question-list">
+            <p class="empty-state">Chargement des questions...</p>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </main>
 
   <!-- ─── Toast / Notification ───────────────────────── -->

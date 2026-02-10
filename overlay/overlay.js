@@ -12,13 +12,14 @@ const socket = io({
 
 // ─── State ──────────────────────────────────────────────────
 let currentScreen = 'waiting';
+let lastState = null;
 
 // ─── DOM Elements ───────────────────────────────────────────
 const screens = {
   waiting: document.getElementById('screen-waiting'),
+  selection: document.getElementById('screen-selection'),
   question: document.getElementById('screen-question'),
   answer: document.getElementById('screen-answer'),
-  scores: document.getElementById('screen-scores'),
 };
 
 // ─── Screen Management ──────────────────────────────────────
@@ -40,24 +41,68 @@ function showScreen(screenName) {
 function updateOverlay(state) {
   if (!state) return;
 
+  // Écran sélection : affiché quand selectionState est présent (chaque étape visible pour les viewers)
+  if (state.selectionState) {
+    showScreen('selection');
+    renderSelection(state.selectionState);
+    return;
+  }
+
   // Déterminer quel écran afficher
   showScreen(state.screen);
 
   // Mettre à jour le contenu selon l'écran
   switch (state.screen) {
     case 'question':
+      if (currentScreen !== 'question') playSound('question');
       renderQuestion(state);
       break;
     case 'answer':
+      if (!lastState || lastState.screen !== 'answer') playSound('selection');
       renderAnswer(state);
-      break;
-    case 'scores':
-      renderScores(state);
       break;
     case 'waiting':
     default:
       break;
   }
+  lastState = state;
+}
+
+/**
+ * Affiche chacune des 5 étapes de sélection sur l'overlay (options + sélection)
+ */
+function renderSelection(selectionState) {
+  const container = document.getElementById('selection-steps');
+  if (!container || !selectionState || !selectionState.steps) return;
+
+  const stepOrder = ['matiere', 'level', 'category', 'theme', 'question'];
+  const steps = selectionState.steps;
+
+  container.innerHTML = stepOrder.map((stepId) => {
+    const step = steps[stepId] || {};
+    const label = step.label || stepId;
+    const selected = step.selected;
+    const options = step.options || [];
+    const isCurrent = selectionState.currentStep === stepId;
+
+    let content = '';
+    if (selected) {
+      content = `<div class="selection-step-value selected">${escapeHtml(selected)}</div>`;
+    } else if (isCurrent && options.length) {
+      content = `<div class="selection-step-options">${options.map((o) => `<span class="selection-option">${escapeHtml(o.label)}</span>`).join('')}</div>`;
+    } else if (isCurrent && (stepId === 'theme' || stepId === 'question')) {
+      content = `<div class="selection-step-draw">Tirage au sort...</div>`;
+    } else {
+      content = `<span class="selection-step-wait">—</span>`;
+    }
+
+    return `
+      <div class="selection-step ${isCurrent ? 'current' : ''} ${selected ? 'done' : ''}">
+        <div class="selection-step-label">${escapeHtml(label)}</div>
+        ${content}
+      </div>
+    `;
+  }).join('');
 }
 
 function renderQuestion(state) {
@@ -76,14 +121,14 @@ function renderQuestion(state) {
   // Question text
   document.getElementById('q-text').textContent = q.question;
 
-  // Propositions
+  // Propositions (style jeu TV : A B C D)
   const propEl = document.getElementById('q-propositions');
   propEl.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
   q.propositions.forEach((prop, i) => {
     const div = document.createElement('div');
-    div.className = 'proposition';
-    div.innerHTML = `<span class="letter">${letters[i]}</span>${escapeHtml(prop)}`;
+    div.className = 'answer-box';
+    div.innerHTML = `<span class="letter">${letters[i]}</span><span class="answer-text">${escapeHtml(prop)}</span>`;
     propEl.appendChild(div);
   });
 }
@@ -98,15 +143,15 @@ function renderAnswer(state) {
   // Question text
   document.getElementById('a-text').textContent = q.question;
 
-  // Propositions with result coloring
+  // Propositions avec révélation (style jeu TV)
   const propEl = document.getElementById('a-propositions');
   propEl.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
 
   q.propositions.forEach((prop, i) => {
     const div = document.createElement('div');
-    div.className = 'proposition';
-    div.innerHTML = `<span class="letter">${letters[i]}</span>${escapeHtml(prop)}`;
+    div.className = 'answer-box';
+    div.innerHTML = `<span class="letter">${letters[i]}</span><span class="answer-text">${escapeHtml(prop)}</span>`;
 
     if (state.state === 'answer_validated') {
       if (prop === q.rightAnswer) {
@@ -127,16 +172,19 @@ function renderAnswer(state) {
     propEl.appendChild(div);
   });
 
-  // Result banner
+  // Result banner (son bonne/mauvaise réponse une seule fois à la validation)
   const resultEl = document.getElementById('a-result');
   if (state.state === 'answer_validated') {
+    const justValidated = !lastState || lastState.state !== 'answer_validated';
     resultEl.classList.remove('hidden', 'correct', 'incorrect');
     if (state.isCorrect) {
       resultEl.classList.add('correct');
       resultEl.textContent = 'Bonne réponse !';
+      if (justValidated) playSound('good');
     } else {
       resultEl.classList.add('incorrect');
       resultEl.textContent = 'Mauvaise réponse !';
+      if (justValidated) playSound('bad');
     }
   } else {
     resultEl.classList.add('hidden');
@@ -152,24 +200,18 @@ function renderAnswer(state) {
   }
 }
 
-function renderScores(state) {
-  const board = document.getElementById('scores-board');
-  const scores = state.scores;
-
-  if (!scores || Object.keys(scores).length === 0) {
-    board.innerHTML = '<div class="scores-empty">Aucun score</div>';
-    return;
-  }
-
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-
-  board.innerHTML = sorted.map(([name, score], index) => `
-    <div class="score-row" style="animation-delay: ${index * 0.1}s">
-      <span class="score-rank">#${index + 1}</span>
-      <span class="score-name">${escapeHtml(name)}</span>
-      <span class="score-value">${score}</span>
-    </div>
-  `).join('');
+// ─── Sons (à remplir avec tes fichiers dans overlay/assets/sounds/) ───
+// Fichiers attendus :
+// - question.mp3 : quand la question s'affiche à l'écran
+// - selection.mp3 : quand le streamer sélectionne une réponse (révélation)
+// - good.mp3 : bonne réponse
+// - bad.mp3 : mauvaise réponse
+function playSound(name) {
+  try {
+    const audio = new Audio(`/overlay/assets/sounds/${name}.mp3`);
+    audio.volume = 0.8;
+    audio.play().catch(() => {});
+  } catch (_) {}
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -210,10 +252,10 @@ socket.on('game:screen-changed', (state) => {
   updateOverlay(state);
 });
 
-socket.on('game:score-updated', (state) => {
+socket.on('game:reset', (state) => {
   updateOverlay(state);
 });
 
-socket.on('game:reset', (state) => {
+socket.on('game:selection-step', (state) => {
   updateOverlay(state);
 });

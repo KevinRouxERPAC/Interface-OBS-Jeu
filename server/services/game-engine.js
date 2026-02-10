@@ -13,10 +13,13 @@ const STATES = {
 
 const SCREENS = {
   WAITING: 'waiting',
+  SELECTION: 'selection',
   QUESTION: 'question',
   ANSWER: 'answer',
   SCORES: 'scores',
 };
+
+const SELECTION_STEPS = ['matiere', 'level', 'category', 'theme', 'question'];
 
 class GameEngine {
   constructor() {
@@ -35,6 +38,7 @@ class GameEngine {
     this.scores = {};
     this.questionHistory = [];
     this.questionCount = 0;
+    this.selectionState = null;
   }
 
   /**
@@ -50,7 +54,31 @@ class GameEngine {
       scores: { ...this.scores },
       questionHistory: [...this.questionHistory],
       questionCount: this.questionCount,
+      selectionState: this.selectionState,
     };
+  }
+
+  /**
+   * Définit l'état de sélection guidée (affiché sur l'overlay à chaque étape)
+   * @param {object} selectionState - { currentStep, steps: { matiere: { label, options, selected }, ... } }
+   */
+  setSelectionState(selectionState) {
+    this.selectionState = selectionState;
+    if (selectionState) {
+      this.screen = 'selection';
+    }
+    return this.getState();
+  }
+
+  /**
+   * Efface l'état de sélection (après tirage de la question ou reset)
+   */
+  clearSelectionState() {
+    this.selectionState = null;
+    if (this.state === STATES.WAITING) {
+      this.screen = SCREENS.WAITING;
+    }
+    return this.getState();
   }
 
   /**
@@ -82,6 +110,7 @@ class GameEngine {
       this.questionHistory.push(question.ID);
     }
 
+    this.clearSelectionState();
     return this.getState();
   }
 

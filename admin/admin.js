@@ -20,23 +20,19 @@ const gsStatus = document.getElementById('gs-status');
 const btnRefresh = document.getElementById('btn-refresh-data');
 const btnReveal = document.getElementById('btn-reveal');
 const btnNext = document.getElementById('btn-next');
-const btnScores = document.getElementById('btn-scores');
 const btnReset = document.getElementById('btn-reset');
 const btnRandom = document.getElementById('btn-random');
-const btnAddPoint = document.getElementById('btn-add-point');
-const btnRemovePoint = document.getElementById('btn-remove-point');
-const playerNameInput = document.getElementById('player-name');
 const currentQuestionDisplay = document.getElementById('current-question-display');
 const cqText = document.getElementById('cq-text');
 const cqMeta = document.getElementById('cq-meta');
 const cqPropositions = document.getElementById('cq-propositions');
 const cqExplanation = document.getElementById('cq-explanation');
 const questionList = document.getElementById('question-list');
-const scoresList = document.getElementById('scores-list');
 const filterMatiere = document.getElementById('filter-matiere');
 const filterCategory = document.getElementById('filter-category');
 const filterTheme = document.getElementById('filter-theme');
 const filterLevel = document.getElementById('filter-level');
+const guidedStepsEl = document.getElementById('guided-steps');
 
 // ─── Toast ──────────────────────────────────────────────────
 function showToast(message, type = 'info') {
@@ -110,7 +106,7 @@ function updateGameUI(state) {
   // Boutons
   const s = state.state;
   btnReveal.disabled = s !== 'question_displayed';
-  btnNext.disabled = s !== 'answer_validated' && s !== 'scoreboard';
+  btnNext.disabled = s !== 'answer_validated';
 
   // Current Question
   if (state.currentQuestion) {
@@ -143,11 +139,11 @@ function updateGameUI(state) {
     currentQuestionDisplay.classList.add('hidden');
   }
 
-  // Scores
-  renderScores(state.scores);
-
   // Marquer les questions posées dans la liste
   renderQuestionList();
+
+  // Sélection guidée (affichée sur l'overlay)
+  renderGuidedSelection(state.selectionState);
 }
 
 function renderPropositions(state) {
@@ -180,21 +176,6 @@ function renderPropositions(state) {
   });
 }
 
-function renderScores(scores) {
-  if (!scores || Object.keys(scores).length === 0) {
-    scoresList.innerHTML = '<p class="empty-state">Aucun score pour l\'instant</p>';
-    return;
-  }
-
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  scoresList.innerHTML = sorted.map(([name, score]) =>
-    `<div class="score-item">
-      <span class="player-name">${escapeHtml(name)}</span>
-      <span class="player-score">${score}</span>
-    </div>`
-  ).join('');
-}
-
 function updateStats() {
   document.getElementById('stat-questions').textContent = allQuestions.length;
   document.getElementById('stat-themes').textContent = allThemes.length;
@@ -217,6 +198,72 @@ function updateGSStatus(gs) {
     gsStatus.className = 'status-badge disconnected';
   } else {
     gsStatus.className = 'status-badge cached';
+  }
+}
+
+// ─── Sélection guidée (5 étapes, visibles sur l'overlay) ─────
+function renderGuidedSelection(selectionState) {
+  const stepOrder = ['matiere', 'level', 'category', 'theme', 'question'];
+  const currentStep = selectionState?.currentStep || 'matiere';
+  const steps = selectionState?.steps || {};
+
+  // Options pour l'étape 1 si pas encore de selectionState
+  const matiereOptions = steps.matiere?.options?.length
+    ? steps.matiere.options
+    : [{ value: 'Histoire', label: 'Histoire' }, { value: '', label: 'Toutes les matières' }];
+
+  let html = '';
+  stepOrder.forEach((stepId) => {
+    const step = steps[stepId] || {};
+    const label = step.label || stepId;
+    const selected = step.selected;
+    const options = step.options || (stepId === 'matiere' ? matiereOptions : []);
+    const isCurrent = currentStep === stepId;
+
+    html += `<div class="guided-step ${isCurrent ? 'current' : ''} ${selected ? 'done' : ''}" data-step="${stepId}">`;
+    html += `<div class="guided-step-label">${escapeHtml(label)}</div>`;
+
+    if (selected) {
+      html += `<div class="guided-step-selected">${escapeHtml(selected)}</div>`;
+    } else if (isCurrent && options.length) {
+      html += '<div class="guided-step-options">';
+      options.forEach((opt) => {
+        html += `<button type="button" class="btn btn-step-option" data-step="${stepId}" data-value="${escapeHtml(opt.value)}">${escapeHtml(opt.label)}</button>`;
+      });
+      html += '</div>';
+    } else if (isCurrent && (stepId === 'theme' || stepId === 'question')) {
+      const btnLabel = stepId === 'theme' ? 'Tirer le thème au sort' : 'Tirer la question au sort';
+      html += `<button type="button" class="btn btn-primary btn-draw" data-step="${stepId}">${btnLabel}</button>`;
+    } else if (!selected) {
+      html += '<span class="guided-step-wait">—</span>';
+    }
+    html += '</div>';
+  });
+
+  guidedStepsEl.innerHTML = html;
+
+  guidedStepsEl.querySelectorAll('.btn-step-option').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const step = btn.dataset.step;
+      const value = btn.dataset.value;
+      postSelectionStep(step, value);
+    });
+  });
+  guidedStepsEl.querySelectorAll('.btn-draw').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      postSelectionStep(btn.dataset.step);
+    });
+  });
+}
+
+async function postSelectionStep(step, selected) {
+  const body = { step };
+  if (selected !== undefined) body.selected = selected;
+  const res = await apiCall('/api/game/selection-step', 'POST', body);
+  if (res.success && res.data) {
+    updateGameUI(res.data);
+    if (step === 'question') showToast('Question sélectionnée', 'success');
+    else if (step === 'theme') showToast('Thème tiré au sort', 'success');
   }
 }
 
@@ -313,10 +360,6 @@ async function nextStep() {
   await apiCall('/api/game/next', 'POST');
 }
 
-async function showScores() {
-  await apiCall('/api/game/show-scores', 'POST');
-}
-
 async function resetGame() {
   if (confirm('Réinitialiser le jeu ? Les scores seront perdus.')) {
     await apiCall('/api/game/reset', 'POST');
@@ -345,15 +388,6 @@ async function selectRandom() {
 
   const res = await apiCall('/api/game/select-random', 'POST', body);
   if (res.success) showToast('Question aléatoire sélectionnée', 'success');
-}
-
-async function updateScore(delta) {
-  const name = playerNameInput.value.trim();
-  if (!name) {
-    showToast('Entrez un nom de joueur', 'warning');
-    return;
-  }
-  await apiCall('/api/game/update-score', 'POST', { playerName: name, delta });
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -387,11 +421,8 @@ socket.on('data:refreshed', (info) => {
 btnRefresh.addEventListener('click', refreshData);
 btnReveal.addEventListener('click', revealAnswer);
 btnNext.addEventListener('click', nextStep);
-btnScores.addEventListener('click', showScores);
 btnReset.addEventListener('click', resetGame);
 btnRandom.addEventListener('click', selectRandom);
-btnAddPoint.addEventListener('click', () => updateScore(1));
-btnRemovePoint.addEventListener('click', () => updateScore(-1));
 
 filterMatiere.addEventListener('change', renderQuestionList);
 filterCategory.addEventListener('change', renderQuestionList);

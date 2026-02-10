@@ -1,30 +1,5 @@
-/* ─── Thème dark flat moderne (overlay) ───────────────────── */
-:root {
-  --bg-transparent: transparent;
-
-  /* Fond général très sombre, neutre (caméra derrière) */
-  --navy: #020309;
-  --navy-mid: #050713;
-  --navy-light: #0b1020;
-  --navy-card: rgba(12, 18, 30, 0.96);
-
-  /* Accent principal turquoise / cyan (aligné avec l'admin) */
-  --gold: #38bdf8;
-  --gold-dark: #0ea5e9;
-  --gold-light: #7dd3fc;
-  --gold-glow: rgba(56, 189, 248, 0.55);
-
-  --white: #ffffff;
-  --cream: #e5e7eb;
-
-  --success: #22c55e;
-  --success-glow: rgba(34, 197, 94, 0.5);
-  --danger: #f97373;
-  --danger-glow: rgba(249, 115, 115, 0.5);
-
-  --text: #e5e7eb;
-  --text-muted: #9ca3af;
-}
+/* ─── Thème "Qui veut gagner des millions" ───────────────────── */
+REPLACEME
 
 /* ─── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -425,4 +400,5 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
 

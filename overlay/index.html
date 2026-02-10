@@ -9,44 +9,47 @@
 <body>
   <div id="overlay-container">
 
-    <!-- ─── Écran d'attente ──────────────────────────── -->
+    <!-- Écran d'attente (style jeu TV) -->
     <div id="screen-waiting" class="screen active">
       <div class="waiting-content">
         <h1 class="game-title">Qui veut passer<br>pour un teub&eacute; ?</h1>
+        <p class="waiting-subtitle">Émission de jeu</p>
         <div class="waiting-pulse"></div>
       </div>
     </div>
 
-    <!-- ─── Écran Question ───────────────────────────── -->
+    <!-- Écran Sélection : affiche chaque étape (Matière → Difficulté → Catégorie → Thème → Question) -->
+    <div id="screen-selection" class="screen">
+      <div class="selection-content">
+        <h2 class="selection-title">Choix de la question</h2>
+        <div id="selection-steps" class="selection-steps">
+          <!-- Rempli par overlay.js depuis state.selectionState -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Écran Question : plateau type émission (question + 4 réponses A B C D) -->
     <div id="screen-question" class="screen">
-      <div class="question-container">
-        <div class="question-header">
+      <div class="game-show-set">
+        <div class="question-banner">
           <span id="q-counter" class="q-counter">Question 1</span>
           <div id="q-tags" class="q-tags"></div>
+          <div id="q-text" class="q-text"></div>
         </div>
-        <div id="q-text" class="q-text"></div>
-        <div id="q-propositions" class="q-propositions"></div>
+        <div id="q-propositions" class="answers-grid"></div>
       </div>
     </div>
 
-    <!-- ─── Écran Réponse ────────────────────────────── -->
+    <!-- Écran Réponse : même plateau avec révélation bonne/mauvaise -->
     <div id="screen-answer" class="screen">
-      <div class="answer-container">
-        <div class="question-header">
+      <div class="game-show-set">
+        <div class="question-banner">
           <span id="a-counter" class="q-counter">Question 1</span>
+          <div id="a-text" class="q-text"></div>
         </div>
-        <div id="a-text" class="q-text"></div>
-        <div id="a-propositions" class="q-propositions"></div>
+        <div id="a-propositions" class="answers-grid"></div>
         <div id="a-result" class="result-banner hidden"></div>
         <div id="a-explanation" class="explanation hidden"></div>
-      </div>
-    </div>
-
-    <!-- ─── Écran Scores ─────────────────────────────── -->
-    <div id="screen-scores" class="screen">
-      <div class="scores-container">
-        <h2 class="scores-title">Tableau des scores</h2>
-        <div id="scores-board" class="scores-board"></div>
       </div>
     </div>
   </div>
