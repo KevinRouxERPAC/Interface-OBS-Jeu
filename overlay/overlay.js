@@ -13,6 +13,7 @@ const socket = io({
 // ─── State ──────────────────────────────────────────────────
 let currentScreen = 'waiting';
 let lastState = null;
+let selectionAudio = null; // son de sélection (joué en boucle jusqu'à révélation)
 
 // ─── DOM Elements ───────────────────────────────────────────
 const screens = {
@@ -43,13 +44,25 @@ function updateOverlay(state) {
 
   // Écran sélection : affiché quand selectionState est présent (chaque étape visible pour les viewers)
   if (state.selectionState) {
+    stopSelectionSound();
     showScreen('selection');
     renderSelection(state.selectionState);
     return;
   }
 
   // Déterminer quel écran afficher
+  const wasOnAnswer = currentScreen === 'answer';
   showScreen(state.screen);
+
+  // Son de sélection : jouer en boucle quand le streamer a sélectionné une réponse (A/B/C/D), arrêter en quittant l'écran
+  if (state.screen === 'answer') {
+    if (!wasOnAnswer && state.state === 'answer_validated') {
+      stopSelectionSound();
+      startSelectionSoundLoop();
+    }
+  } else {
+    stopSelectionSound();
+  }
 
   // Mettre à jour le contenu selon l'écran
   switch (state.screen) {
@@ -58,7 +71,6 @@ function updateOverlay(state) {
       renderQuestion(state);
       break;
     case 'answer':
-      if (!lastState || lastState.screen !== 'answer') playSound('selection');
       renderAnswer(state);
       break;
     case 'waiting':
@@ -203,7 +215,7 @@ function renderAnswer(state) {
 // ─── Sons (à remplir avec tes fichiers dans overlay/assets/sounds/) ───
 // Fichiers attendus :
 // - question.mp3 : quand la question s'affiche à l'écran
-// - selection.mp3 : quand le streamer sélectionne une réponse (révélation)
+// - selection.mp3 : joué en boucle dès la sélection d'une réponse, jusqu'à ce qu'on quitte l'écran réponse
 // - good.mp3 : bonne réponse
 // - bad.mp3 : mauvaise réponse
 function playSound(name) {
@@ -212,6 +224,26 @@ function playSound(name) {
     audio.volume = 0.8;
     audio.play().catch(() => {});
   } catch (_) {}
+}
+
+function startSelectionSoundLoop() {
+  try {
+    stopSelectionSound();
+    selectionAudio = new Audio('/overlay/assets/sounds/selection.mp3');
+    selectionAudio.volume = 0.8;
+    selectionAudio.loop = true;
+    selectionAudio.play().catch(() => {});
+  } catch (_) {}
+}
+
+function stopSelectionSound() {
+  if (selectionAudio) {
+    try {
+      selectionAudio.pause();
+      selectionAudio.currentTime = 0;
+    } catch (_) {}
+    selectionAudio = null;
+  }
 }
 
 // ─── Helpers ────────────────────────────────────────────────
