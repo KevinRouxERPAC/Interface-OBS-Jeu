@@ -33,6 +33,11 @@ const filterCategory = document.getElementById('filter-category');
 const filterTheme = document.getElementById('filter-theme');
 const filterLevel = document.getElementById('filter-level');
 const guidedStepsEl = document.getElementById('guided-steps');
+const guidedStartEl = document.getElementById('guided-start');
+const guidedWorkflowEl = document.getElementById('guided-workflow');
+const btnStartWorkflow = document.getElementById('btn-start-workflow');
+const btnResetWorkflow = document.getElementById('btn-reset-workflow');
+const guidedHistoryEl = document.getElementById('guided-history');
 
 // ─── Toast ──────────────────────────────────────────────────
 function showToast(message, type = 'info') {
@@ -143,7 +148,7 @@ function updateGameUI(state) {
   renderQuestionList();
 
   // Sélection guidée (affichée sur l'overlay)
-  renderGuidedSelection(state.selectionState);
+  updateGuidedWorkflowUI(state.selectionState);
 }
 
 function renderPropositions(state) {
@@ -202,15 +207,37 @@ function updateGSStatus(gs) {
 }
 
 // ─── Sélection guidée (5 étapes, visibles sur l'overlay) ─────
-function renderGuidedSelection(selectionState) {
+function updateGuidedWorkflowUI(selectionState) {
+  if (!selectionState) {
+    guidedStartEl?.classList.remove('hidden');
+    guidedWorkflowEl?.classList.add('hidden');
+    return;
+  }
+  guidedStartEl?.classList.add('hidden');
+  guidedWorkflowEl?.classList.remove('hidden');
+
+  // Historique : matière → difficulté → catégorie → thème → question
+  const steps = selectionState.steps || {};
+  const parts = [];
+  if (steps.matiere?.selected) parts.push(steps.matiere.selected);
+  if (steps.level?.selected) parts.push(steps.level.selected);
+  if (steps.category?.selected) parts.push(steps.category.selected);
+  if (steps.theme?.selected) parts.push(steps.theme.selected);
+  if (steps.question?.selected) parts.push('Question sélectionnée');
+  guidedHistoryEl.textContent = parts.length ? parts.join(' › ') : '—';
+  guidedHistoryEl.title = parts.length ? parts.join(' → ') : '';
+
+  renderGuidedSteps(selectionState);
+}
+
+function renderGuidedSteps(selectionState) {
   const stepOrder = ['matiere', 'level', 'category', 'theme', 'question'];
   const currentStep = selectionState?.currentStep || 'matiere';
   const steps = selectionState?.steps || {};
 
-  // Options pour l'étape 1 si pas encore de selectionState
   const matiereOptions = steps.matiere?.options?.length
     ? steps.matiere.options
-    : [{ value: 'Histoire', label: 'Histoire' }, { value: '', label: 'Toutes les matières' }];
+    : allMatieres.map(m => ({ value: m.Nom, label: m.Nom }));
 
   let html = '';
   stepOrder.forEach((stepId) => {
@@ -254,6 +281,14 @@ function renderGuidedSelection(selectionState) {
       postSelectionStep(btn.dataset.step);
     });
   });
+}
+
+async function startOrResetWorkflow() {
+  const res = await apiCall('/api/game/reset-workflow', 'POST');
+  if (res.success) {
+    updateGameUI(res.data);
+    showToast('Sélection guidée démarrée', 'success');
+  }
 }
 
 async function postSelectionStep(step, selected) {
@@ -428,6 +463,9 @@ filterMatiere.addEventListener('change', renderQuestionList);
 filterCategory.addEventListener('change', renderQuestionList);
 filterTheme.addEventListener('change', renderQuestionList);
 filterLevel.addEventListener('change', renderQuestionList);
+
+btnStartWorkflow.addEventListener('click', startOrResetWorkflow);
+btnResetWorkflow.addEventListener('click', startOrResetWorkflow);
 
 // ─── Init ───────────────────────────────────────────────────
 loadAllData();

@@ -21,12 +21,15 @@
       </div>
     </div>
 
-    <!-- Écran Sélection : affiche chaque étape (Matière → Difficulté → Catégorie → Thème → Question) -->
+    <!-- Écran Sélection : affiche les sélections faites + étape courante -->
     <div id="screen-selection" class="screen">
       <div class="selection-content">
-        <h2 class="selection-title">Choix de la question</h2>
+        <div id="selection-summary" class="selection-summary">
+          <!-- Sélections déjà faites (visible par spectateurs et participants) -->
+        </div>
+        <h2 id="selection-title" class="selection-title">Choisis la matière</h2>
         <div id="selection-steps" class="selection-steps">
-          <!-- Rempli par overlay.js depuis state.selectionState -->
+          <!-- Rempli par overlay.js selon l'étape -->
         </div>
       </div>
     </div>

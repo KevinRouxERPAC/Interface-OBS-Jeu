@@ -58,4 +58,21 @@ function broadcastState(state) {
   broadcast('game:state-update', state);
 }
 
-module.exports = { init, broadcast, broadcastState };
+/**
+ * Ferme proprement le serveur Socket.IO (pour arrêt du serveur)
+ * @returns {Promise<void>}
+ */
+function close() {
+  if (io) {
+    return new Promise((resolve) => {
+      io.close(() => {
+        io = null;
+        console.log('[WS] Socket.IO fermé');
+        resolve();
+      });
+    });
+  }
+  return Promise.resolve();
+}
+
+module.exports = { init, broadcast, broadcastState, close };

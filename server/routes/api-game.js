@@ -25,10 +25,10 @@ function getSelectionOptions(step, dataStore, filters) {
   const questions = dataStore.questions || [];
 
   if (step === 'matiere') {
-    return [
-      { value: 'Histoire', label: 'Histoire' },
-      { value: '', label: 'Toutes les matières' },
-    ];
+    const uniqueMatieres = matieres.length
+      ? [...new Set(matieres.map(m => m.Nom).filter(Boolean))]
+      : ['Histoire'];
+    return uniqueMatieres.map(nom => ({ value: nom, label: nom }));
   }
 
   if (step === 'level') {
@@ -189,9 +189,8 @@ function createGameRoutes(deps) {
         }
         const theme = themes[Math.floor(Math.random() * themes.length)];
         stepResults.theme = theme.Name;
-        const nextStep = 'question';
         const steps = buildStepsPayload(dataStore, filters, stepResults);
-        const selectionState = { currentStep: nextStep, steps };
+        const selectionState = { currentStep: 'question', steps };
         gameEngine.setSelectionState(selectionState);
         socketManager.broadcast('game:selection-step', gameEngine.getState());
         socketManager.broadcastState(gameEngine.getState());
@@ -384,6 +383,24 @@ function createGameRoutes(deps) {
       res.json({ success: true, data: state });
     } catch (err) {
       res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST /api/game/reset-workflow - Recommencer la sélection guidée (étape 1)
+  router.post('/reset-workflow', (req, res) => {
+    try {
+      const state = gameEngine.getState();
+      gameEngine.clearSelectionState();
+      const newState = gameEngine.getState();
+      const steps = buildStepsPayload(dataStore, {}, {});
+      const selectionState = { currentStep: 'matiere', steps };
+      gameEngine.setSelectionState(selectionState);
+      const finalState = gameEngine.getState();
+      socketManager.broadcast('game:selection-step', finalState);
+      socketManager.broadcastState(finalState);
+      res.json({ success: true, data: finalState });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 

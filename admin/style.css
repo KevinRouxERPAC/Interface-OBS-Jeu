@@ -409,6 +409,10 @@ main {
   color: var(--accent-primary);
 }
 
+.hidden {
+  display: none !important;
+}
+
 /* ─── Sélection guidée ──────────────────────────────────────── */
 .panel-guided .panel-badge {
   font-size: 0.7rem;
@@ -491,6 +495,34 @@ main {
 
 .btn-draw {
   margin-top: 0.25rem;
+}
+
+.guided-start .btn-block {
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  font-size: 1rem;
+}
+
+.guided-workflow-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.guided-workflow-header .btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  align-self: flex-start;
+}
+
+.guided-history {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 /* ─── Filters ────────────────────────────────────────────────── */

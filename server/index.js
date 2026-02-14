@@ -121,6 +121,34 @@ async function loadData() {
   }
 }
 
+// ─── Arrêt propre du serveur ─────────────────────────────────────
+function shutdown(signal) {
+  const label = signal || 'shutdown';
+  console.log('');
+  console.log(`[Serveur] Signal ${label} reçu, arrêt en cours...`);
+  server.close(() => {
+    console.log('[Serveur] HTTP fermé');
+    socketManager.close().then(() => {
+      console.log('[Serveur] Arrêt terminé.');
+      process.exit(0);
+    });
+  });
+  // Forcer la sortie après 5 s si les callbacks ne se déclenchent pas
+  setTimeout(() => {
+    console.error('[Serveur] Timeout arrêt, sortie forcée.');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+// Sur Windows : fermeture de la console (événement non standard)
+process.on('exit', (code) => {
+  if (code !== 0) return;
+  console.log('[Serveur] Processus terminé.');
+});
+
 // ─── Démarrage ──────────────────────────────────────────────────
 async function start() {
   console.log('');
@@ -137,6 +165,8 @@ async function start() {
     console.log(`  Serveur démarré sur http://localhost:${config.port}`);
     console.log(`  Admin:   http://localhost:${config.port}/admin`);
     console.log(`  Overlay: http://localhost:${config.port}/overlay`);
+    console.log(`──────────────────────────────────────────────`);
+    console.log(`  Arrêt : Ctrl+C ou fermer cette console.`);
     console.log(`──────────────────────────────────────────────`);
     console.log('');
   });

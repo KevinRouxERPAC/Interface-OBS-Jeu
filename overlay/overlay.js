@@ -81,40 +81,84 @@ function updateOverlay(state) {
 }
 
 /**
- * Affiche chacune des 5 étapes de sélection sur l'overlay (options + sélection)
+ * Affiche l'écran de sélection adapté à l'étape courante (style bandeau TV)
+ * Étape 1-3 : bandeau avec titre + boutons options
+ * Étape 4 : thème sélectionné en gros avec fade-in
  */
 function renderSelection(selectionState) {
   const container = document.getElementById('selection-steps');
+  const titleEl = document.getElementById('selection-title');
+  const summaryEl = document.getElementById('selection-summary');
   if (!container || !selectionState || !selectionState.steps) return;
 
-  const stepOrder = ['matiere', 'level', 'category', 'theme', 'question'];
+  const currentStep = selectionState.currentStep;
   const steps = selectionState.steps;
+  const step = steps[currentStep] || {};
+  const options = step.options || [];
+  const selected = step.selected;
 
-  container.innerHTML = stepOrder.map((stepId) => {
-    const step = steps[stepId] || {};
-    const label = step.label || stepId;
-    const selected = step.selected;
-    const options = step.options || [];
-    const isCurrent = selectionState.currentStep === stepId;
+  // Afficher les sélections déjà faites (pour spectateurs et participants)
+  const summaryLabels = { matiere: 'Matière', level: 'Difficulté', category: 'Catégorie', theme: 'Thème' };
+  const summaryParts = [];
+  ['matiere', 'level', 'category', 'theme'].forEach((stepId) => {
+    const s = steps[stepId]?.selected;
+    if (s) summaryParts.push(`${summaryLabels[stepId]} : ${s}`);
+  });
+  if (summaryParts.length > 0) {
+    summaryEl.innerHTML = `<div class="selection-summary-label">Sélections faites</div><div class="selection-summary-text">${summaryParts.map(p => escapeHtml(p)).join('  •  ')}</div>`;
+    summaryEl.classList.remove('hidden');
+  } else {
+    summaryEl.innerHTML = '';
+    summaryEl.classList.add('hidden');
+  }
 
-    let content = '';
-    if (selected) {
-      content = `<div class="selection-step-value selected">${escapeHtml(selected)}</div>`;
-    } else if (isCurrent && options.length) {
-      content = `<div class="selection-step-options">${options.map((o) => `<span class="selection-option">${escapeHtml(o.label)}</span>`).join('')}</div>`;
-    } else if (isCurrent && (stepId === 'theme' || stepId === 'question')) {
-      content = `<div class="selection-step-draw">Tirage au sort...</div>`;
-    } else {
-      content = `<span class="selection-step-wait">—</span>`;
-    }
+  const stepTitles = {
+    matiere: 'Choisis la matière',
+    level: 'Choisis la difficulté',
+    category: 'Choisis la catégorie',
+    theme: 'Thème sélectionné',
+    question: 'Tirage de la question...',
+  };
+  titleEl.textContent = stepTitles[currentStep] || step.label || currentStep;
 
-    return `
-      <div class="selection-step ${isCurrent ? 'current' : ''} ${selected ? 'done' : ''}">
-        <div class="selection-step-label">${escapeHtml(label)}</div>
-        ${content}
+  // Étape 4 (thème) ou 5 (question) avec thème sélectionné : afficher le thème en gros
+  const themeSelected = steps.theme?.selected;
+  if (themeSelected && (currentStep === 'theme' || currentStep === 'question')) {
+    const drawHint = currentStep === 'question' ? '<div class="selection-theme-hint">Tirage de la question…</div>' : '';
+    container.innerHTML = `
+      <div class="selection-theme-reveal">
+        <div class="selection-theme-value">${escapeHtml(themeSelected)}</div>
+        ${drawHint}
       </div>
     `;
-  }).join('');
+    container.classList.add('theme-reveal');
+    return;
+  }
+
+  // Étape 5 sans thème (cas limite) : tirage en cours
+  if (currentStep === 'question') {
+    container.innerHTML = `
+      <div class="selection-draw-pending">
+        <span class="selection-draw-icon">?</span>
+        <span>Tirage au sort en cours...</span>
+      </div>
+    `;
+    container.classList.remove('theme-reveal');
+    return;
+  }
+
+  container.classList.remove('theme-reveal');
+
+  // Étapes 1-3 : bandeau avec boutons
+  if (options.length > 0) {
+    container.innerHTML = `
+      <div class="selection-step-options selection-options-buttons">
+        ${options.map((o) => `<span class="selection-option">${escapeHtml(o.label)}</span>`).join('')}
+      </div>
+    `;
+  } else {
+    container.innerHTML = `<div class="selection-step-wait">—</div>`;
+  }
 }
 
 function renderQuestion(state) {

@@ -85,8 +85,17 @@
         <section id="guided-selection" class="panel panel-guided">
           <h2>S&eacute;lection guid&eacute;e <span class="panel-badge">Overlay</span></h2>
           <p class="guided-desc">Chaque &eacute;tape est affich&eacute;e sur l'overlay pour les viewers.</p>
-          <div id="guided-steps" class="guided-steps">
-            <!-- Rempli par admin.js depuis selectionState -->
+          <div id="guided-start" class="guided-start">
+            <button id="btn-start-workflow" class="btn btn-primary btn-block">D&eacute;marrer la s&eacute;lection guid&eacute;e</button>
+          </div>
+          <div id="guided-workflow" class="hidden">
+            <div class="guided-workflow-header">
+              <button id="btn-reset-workflow" class="btn btn-secondary btn-sm">Recommencer la s&eacute;lection</button>
+              <div id="guided-history" class="guided-history"></div>
+            </div>
+            <div id="guided-steps" class="guided-steps">
+              <!-- Rempli par admin.js depuis selectionState -->
+            </div>
           </div>
         </section>
         <section id="question-selector" class="panel panel-questions">
