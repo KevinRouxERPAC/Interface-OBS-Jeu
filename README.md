@@ -12,6 +12,8 @@ Overlay HTML/CSS/JS façon jeu TV + panneau admin léger pour piloter les questi
 
 ```
 Interface OBS Jeu/
+├── DEMARRER.bat        # Démarrer le serveur (Windows)
+├── ARRETER.bat         # Arrêter le serveur (Windows)
 ├── server.js           # Serveur Express unifié
 ├── package.json        # Dépendances et scripts npm
 ├── admin/              # Panneau de contrôle (navigateur)
@@ -23,6 +25,9 @@ Interface OBS Jeu/
 
 ## 🚀 Lancer le projet
 
+**Sous Windows (recommandé)** : double-cliquez sur **`DEMARRER.bat`** pour lancer le serveur dans une nouvelle fenêtre. Pour l’arrêter : double-cliquez sur **`ARRETER.bat`** (ou fermez la fenêtre du serveur).
+
+**En ligne de commande** :
 ```bash
 npm install
 npm start
