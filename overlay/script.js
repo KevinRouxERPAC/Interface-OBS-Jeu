@@ -27,7 +27,7 @@
     apiUrl,
     apiKey: isDev ? '' : (apiKeyFromUrl || apiKeyFromStorage || ''),
     pollInterval: 500, // 500ms pour OBS
-    defaultTimerDuration: 30, // secondes
+    defaultTimerDuration: 90, // secondes
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
@@ -737,8 +737,8 @@
     try {
       // Fallback vers chemin relatif si API non disponible
       const audioUrl = !CONFIG.isDevelopment
-        ? `${window.location.origin}/overlay/audio/30secondes.wav`
-        : `audio/30secondes.wav`;
+        ? `${window.location.origin}/overlay/audio/1minute30secondes.mp3`
+        : `audio/1minute30secondes.mp3`;
       
       state.timerAudio = new Audio(audioUrl);
       state.timerAudio.volume = 0.4;
