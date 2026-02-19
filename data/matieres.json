@@ -2,6 +2,17 @@
   {
     "id": "1",
     "name": "Histoire"
+  },
+  {
+    "id": "2",
+    "name": "Géographie"
+  },
+  {
+    "id": "3",
+    "name": "Sciences"
+  },
+  {
+    "id": "4",
+    "name": "Culture générale"
   }
 ]
-

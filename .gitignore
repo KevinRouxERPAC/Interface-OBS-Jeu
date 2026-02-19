@@ -49,3 +49,6 @@ desktop.ini
 dist/
 build/
 out/
+
+# Cache données (régénéré par l’API)
+server/cache/

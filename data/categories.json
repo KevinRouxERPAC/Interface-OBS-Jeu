@@ -1,10 +1,114 @@
 [
   {
     "id": "1",
-    "name": "Antiquité",
-    "startDate": "-3000",
+    "name": "Ancienne",
+    "startDate": "-3500",
     "endDate": "476",
     "idMatiere": "1"
+  },
+  {
+    "id": "2",
+    "name": "Médiévale",
+    "startDate": "476",
+    "endDate": "1492",
+    "idMatiere": "1"
+  },
+  {
+    "id": "3",
+    "name": "Moderne",
+    "startDate": "1492",
+    "endDate": "1789",
+    "idMatiere": "1"
+  },
+  {
+    "id": "4",
+    "name": "Contemporaine",
+    "startDate": "1789",
+    "endDate": "aujourd'hui",
+    "idMatiere": "1"
+  },
+  {
+    "id": "5",
+    "name": "Pays",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "2"
+  },
+  {
+    "id": "6",
+    "name": "Drapeaux",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "2"
+  },
+  {
+    "id": "7",
+    "name": "Capitales",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "2"
+  },
+  {
+    "id": "8",
+    "name": "Reliefs",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "2"
+  },
+  {
+    "id": "9",
+    "name": "Fleuves/Rivières",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "2"
+  },
+  {
+    "id": "10",
+    "name": "Biologie",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "3"
+  },
+  {
+    "id": "11",
+    "name": "Physique",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "3"
+  },
+  {
+    "id": "12",
+    "name": "Chimie",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "3"
+  },
+  {
+    "id": "13",
+    "name": "Cinéma",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "4"
+  },
+  {
+    "id": "14",
+    "name": "Musique",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "4"
+  },
+  {
+    "id": "15",
+    "name": "Littérature",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "4"
+  },
+  {
+    "id": "16",
+    "name": "Sport",
+    "startDate": "",
+    "endDate": "",
+    "idMatiere": "4"
   }
 ]
-
