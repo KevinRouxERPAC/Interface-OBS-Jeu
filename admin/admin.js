@@ -17,17 +17,9 @@
     ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
     : defaultApiUrl;
 
-  // Clé API : priorité à l'URL (depuis la page d'accueil), puis localStorage, vide en dev
-  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
-  if (apiKeyFromUrl && typeof localStorage !== 'undefined') {
-    localStorage.setItem('quiz-api-key', apiKeyFromUrl);
-  }
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl,
-    apiKey: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? ''
-      : (apiKeyFromUrl || localStorage.getItem('quiz-api-key') || ''),
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
@@ -73,9 +65,6 @@
 
     // Options
     matiereScopeSelect: document.getElementById('matiere-scope'),
-    apiKeyInput: document.getElementById('api-key-input'),
-    btnSaveApiKey: document.getElementById('btn-save-api-key'),
-    
     // Grilles
     matieresGrid: document.getElementById('matieres-grid'),
     levelsGrid: document.getElementById('levels-grid'),
@@ -156,7 +145,11 @@
     allMatieres: [],
     allLevels: [],
     allCategories: [],
-    allThemes: []
+    allThemes: [],
+    // Enchaînement sans répétition : pool de questions du thème (mélangé), index courant
+    themeQuestionPool: [],
+    themeQuestionIndex: 0,
+    themeQuestionPoolThemeId: null
   };
 
   // ========================
@@ -250,9 +243,6 @@
    */
   function fetchWithApiKey(url, options = {}) {
     const headers = { ...options.headers };
-    if (CONFIG.apiKey) {
-      headers['X-API-Key'] = CONFIG.apiKey;
-    }
     return fetch(url, { ...options, headers });
   }
 
@@ -609,38 +599,63 @@
   }
 
   /**
-   * Charge une question aléatoire
+   * Mélange un tableau (Fisher-Yates) en place
    */
-  async function loadRandomQuestion() {
-    try {
-      const params = new URLSearchParams();
-      if (state.selectedMatiere?.id) params.append('matiereId', state.selectedMatiere.id);
-      if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
-      if (state.selectedCategory?.id) params.append('categoryId', state.selectedCategory.id);
-      if (state.selectedTheme?.id) params.append('themeId', state.selectedTheme.id);
-      
-      const url = `${CONFIG.apiUrl}/random?${params.toString()}`;
-      const res = await fetchWithApiKey(url);
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('Aucune question trouvée avec ces critères');
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const question = await res.json();
-      if (!question || !question.question) {
-        throw new Error('Format de question invalide');
-      }
-      state.currentQuestion = question;
-      logEvent(`✓ Question chargée: "${question.question.substring(0, 40)}..."`);
-      return question;
-    } catch (err) {
-      if (CONFIG.isDevelopment) {
-        console.error('[ADMIN] Erreur chargement question:', err);
-      }
-      logEvent('✗ Erreur chargement question: ' + err.message);
-      return null;
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    return arr;
+  }
+
+  /**
+   * Donne la prochaine question du thème sans répétition.
+   * Charge toutes les questions du thème, les mélange une fois, puis les enchaîne.
+   * Quand le pool est épuisé, remélange et recommence.
+   */
+  async function getNextQuestionForTheme() {
+    const themeId = state.selectedTheme?.id;
+    if (!themeId) return null;
+    const needNewPool = state.themeQuestionPoolThemeId !== themeId || state.themeQuestionIndex >= state.themeQuestionPool.length;
+    if (needNewPool) {
+      try {
+        const params = new URLSearchParams();
+        if (state.selectedMatiere?.id) params.append('matiereId', state.selectedMatiere.id);
+        if (state.selectedLevel?.id) params.append('levelId', state.selectedLevel.id);
+        if (state.selectedCategory?.id) params.append('categoryId', state.selectedCategory.id);
+        params.append('themeId', themeId);
+        const res = await fetchWithApiKey(`${CONFIG.apiUrl}/questions?${params.toString()}`);
+        if (!res.ok) {
+          if (res.status === 404) return null;
+          throw new Error(`HTTP ${res.status}`);
+        }
+        let list = await res.json();
+        if (!Array.isArray(list) || list.length === 0) {
+          return null;
+        }
+        const wasExhausted = state.themeQuestionPoolThemeId === themeId && state.themeQuestionIndex >= state.themeQuestionPool.length;
+        state.themeQuestionPool = shuffleArray([...list]);
+        state.themeQuestionIndex = 0;
+        state.themeQuestionPoolThemeId = themeId;
+        if (wasExhausted) {
+          logEvent(`✓ Toutes les questions du thème vues (${list.length}). Nouveau tirage.`);
+        } else {
+          logEvent(`✓ ${state.themeQuestionPool.length} question(s) pour ce thème — enchaînement sans répétition.`);
+        }
+      } catch (err) {
+        if (CONFIG.isDevelopment) console.error('[ADMIN] Erreur chargement questions:', err);
+        logEvent('✗ Erreur: ' + err.message);
+        return null;
+      }
+    }
+    const question = state.themeQuestionPool[state.themeQuestionIndex];
+    state.themeQuestionIndex++;
+    if (!question || !question.question) return null;
+    state.currentQuestion = question;
+    const remaining = state.themeQuestionPool.length - state.themeQuestionIndex;
+    logEvent(`✓ Question ${state.themeQuestionPool.length - remaining}/${state.themeQuestionPool.length}: "${question.question.substring(0, 40)}..."`);
+    return question;
   }
 
   // ========================
@@ -745,6 +760,9 @@
     state.selectedTheme = null;
     state.currentQuestion = null;
     state.answerRevealed = false;
+    state.themeQuestionPool = [];
+    state.themeQuestionIndex = 0;
+    state.themeQuestionPoolThemeId = null;
     
     updateUI();
     
@@ -774,6 +792,9 @@
       state.selectedLevel = null;
       state.selectedCategory = null;
       state.selectedTheme = null;
+      state.themeQuestionPool = [];
+      state.themeQuestionIndex = 0;
+      state.themeQuestionPoolThemeId = null;
       state.screen = 'LEVEL_SELECTION';
       updateUI();
 
@@ -948,53 +969,22 @@
 
   /**
    * Lance une question (debounce pour éviter double envoi)
-   * Si aucune question n'est disponible pour le thème, relance automatiquement le tirage de thème
-   * Si aucune question n'est disponible après plusieurs tentatives, relance automatiquement la sélection complète
+   * Si aucune question n'est disponible pour le thème, on affiche un message clair et on reste sur l'écran.
    */
   let lastLaunchQuestionAt = 0;
-  async function launchQuestion(maxRetries = 5) {
-    if (maxRetries === 5 && Date.now() - lastLaunchQuestionAt < BUTTON_DEBOUNCE_MS) return;
-    if (maxRetries === 5) lastLaunchQuestionAt = Date.now();
+  async function launchQuestion() {
+    if (Date.now() - lastLaunchQuestionAt < BUTTON_DEBOUNCE_MS) return;
+    lastLaunchQuestionAt = Date.now();
 
     logEvent('🚀 Lancement d\'une question...');
     
-    const question = await loadRandomQuestion();
+    const question = await getNextQuestionForTheme();
     if (!question) {
-      // Si aucune question trouvée et qu'on a encore des tentatives
-      if (maxRetries > 0 && state.allThemes && state.allThemes.length > 0) {
-        logEvent('⚠️ Aucune question pour ce thème, nouveau tirage...');
-        
-        // Relancer le tirage de thème
-        const randomTheme = state.allThemes[Math.floor(Math.random() * state.allThemes.length)];
-        logEvent(`🎨 Nouveau thème tiré: ${randomTheme.name}`);
-        state.selectedTheme = randomTheme;
-        state.screen = 'QUESTION_WAITING';
-        
-        // Envoie le nouveau thème à l'overlay
-        sendCommand({
-          type: 'SHOW_THEME',
-          theme: randomTheme,
-          matiere: state.selectedMatiere,
-          level: state.selectedLevel,
-          category: state.selectedCategory
-        });
-        
-        updateUI();
-        
-        // Réessayer avec le nouveau thème (avec une limite pour éviter la boucle infinie)
-        await new Promise(resolve => setTimeout(resolve, 500)); // Petit délai avant de réessayer
-        return launchQuestion(maxRetries - 1);
-      } else {
-        // Plus de tentatives ou plus de thèmes disponibles - relance automatiquement la sélection
-        logEvent('⚠️ Aucune question disponible après plusieurs tentatives - relance automatique de la sélection');
-        
-        // Petit délai avant de relancer pour laisser le temps de voir le message
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Relance automatiquement la sélection complète
-        await startSelection();
-        return;
-      }
+      const themeName = state.selectedTheme?.name || 'ce thème';
+      logEvent(`⚠️ Aucune question pour le thème « ${themeName} ». Ajoutez des questions dans votre base (Google Sheet) ou cliquez sur « Tirer un thème » pour en choisir un autre.`);
+      state.screen = 'QUESTION_WAITING';
+      updateUI();
+      return;
     }
     
     state.screen = 'QUESTION_ACTIVE';
@@ -1074,22 +1064,6 @@
   // ========================
 
   function setupEventListeners() {
-    if (DOM.apiKeyInput && DOM.btnSaveApiKey) {
-      const stored = localStorage.getItem('quiz-api-key');
-      if (stored) DOM.apiKeyInput.value = stored;
-      DOM.btnSaveApiKey.addEventListener('click', () => {
-        const key = (DOM.apiKeyInput.value || '').trim();
-        if (key) {
-          localStorage.setItem('quiz-api-key', key);
-          CONFIG.apiKey = key;
-          logEvent('✓ Clé API enregistrée');
-        } else {
-          localStorage.removeItem('quiz-api-key');
-          CONFIG.apiKey = '';
-          logEvent('Clé API supprimée (mode sans clé)');
-        }
-      });
-    }
     DOM.btnStartSelection.addEventListener('click', startSelection);
     DOM.btnDrawTheme.addEventListener('click', drawTheme);
     DOM.btnLaunchQuestion.addEventListener('click', launchQuestion);

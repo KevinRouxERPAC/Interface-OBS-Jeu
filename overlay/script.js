@@ -9,9 +9,6 @@
   // ========================
   // CONFIG & CONSTANTS
   // ========================
-  // Récupérer l'API Key depuis l'URL (pour OBS) ou localStorage (pour navigateur)
-  // En développement, pas de clé API nécessaire
-  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const urlParams = new URLSearchParams(window.location.search);
   const apiBaseFromUrl = urlParams.get('apiBase') || urlParams.get('api');
   const origin = window.location.origin;
@@ -19,15 +16,12 @@
   const apiUrl = apiBaseFromUrl
     ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
     : defaultApiUrl;
-  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('apikey');
-  const apiKeyFromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('quiz-api-key') : null;
 
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl,
-    apiKey: isDev ? '' : (apiKeyFromUrl || apiKeyFromStorage || ''),
     pollInterval: 500, // 500ms pour OBS
-    defaultTimerDuration: 90, // secondes
+    defaultTimerDuration: 90, // 1min30 — synchronisé avec 1minute30secondes.mp3
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
@@ -130,7 +124,7 @@
 
     // Push via SSE : mise à jour dès qu’une commande est envoyée (pas de polling)
     if (CONFIG.apiUrl && typeof EventSource !== 'undefined') {
-      const streamUrl = CONFIG.apiUrl + '/command/stream' + (CONFIG.apiKey ? '?key=' + encodeURIComponent(CONFIG.apiKey) : '');
+      const streamUrl = CONFIG.apiUrl + '/command/stream';
       try {
         const es = new EventSource(streamUrl);
         es.onmessage = (ev) => {
@@ -173,13 +167,12 @@
   async function pollServer() {
     try {
       const url = `${CONFIG.apiUrl}/command?t=${Date.now()}`;
-      const headers = CONFIG.apiKey ? { 'X-API-Key': CONFIG.apiKey } : {};
-      const res = await fetch(url, { headers, cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           lastAuthError = true;
-          logErrorThrottled(`Authentification échouée (${res.status})`);
-          updateConnectionStatus(false, 'auth');
+          logErrorThrottled(`Accès refusé (${res.status})`);
+          updateConnectionStatus(false);
         } else {
           lastAuthError = false;
           logErrorThrottled(`Serveur inaccessible (${res.status})`);
@@ -221,22 +214,15 @@
 
   /**
    * Met à jour l'indicateur de connexion
-   * @param {boolean} connected
-   * @param {string} [reason] - 'auth' si 401/403 (clé API manquante ou invalide)
    */
-  function updateConnectionStatus(connected, reason) {
+  function updateConnectionStatus(connected) {
     if (!DOM.connectionStatus) return;
     state.lastAdminPing = Date.now();
-    
     DOM.connectionStatus.style.display = 'flex';
     DOM.connectionStatus.classList.toggle('connected', connected);
     DOM.connectionStatus.classList.toggle('disconnected', !connected);
     if (DOM.connectionText) {
-      if (reason === 'auth') {
-        DOM.connectionText.textContent = 'Clé API manquante — Ajoutez ?apiKey=... à l\'URL';
-      } else {
-        DOM.connectionText.textContent = connected ? 'Synchronisé' : 'Non synchronisé';
-      }
+      DOM.connectionText.textContent = connected ? 'Synchronisé' : 'Non synchronisé';
     }
   }
 
@@ -304,7 +290,7 @@
         break;
         
       case 'RESTART_TIMER':
-        state.timerDuration = cmd.duration || CONFIG.defaultTimerDuration;
+        state.timerDuration = CONFIG.defaultTimerDuration; // Toujours 1min30
         restartTimer(state.timerDuration);
         break;
         
@@ -486,7 +472,7 @@
     state.selectedCategory = category;
     state.selectedTheme = theme;
     state.selectedAnswerIndex = null;
-    state.timerDuration = question?.duration || CONFIG.defaultTimerDuration;
+    state.timerDuration = CONFIG.defaultTimerDuration; // Toujours 1min30 avec la musique
     
     DOM.waitingScreen.style.display = 'none';
     DOM.selectionScreen.style.display = 'none';
@@ -667,17 +653,16 @@
   // ========================
 
   /**
-   * Joue un son audio
+   * Joue un son audio (sélection, correct, wrong, etc.)
    */
   function playSound(soundType) {
     try {
       let soundFile;
-      let volume = 0.7;
+      let volume = 0.8;
       
       switch (soundType) {
         case 'select':
           soundFile = 'select.wav';
-          // Arrête le son précédent s'il existe
           stopSelectSound();
           break;
         case 'correct':
@@ -688,13 +673,12 @@
           break;
         case 'timer':
           soundFile = '30secondes.wav';
-          volume = 0.4;
+          volume = 0.5;
           break;
         default:
           return;
       }
       
-      // Fallback vers chemin relatif si API non disponible
       const audioUrl = !CONFIG.isDevelopment
         ? `${window.location.origin}/overlay/audio/${soundFile}`
         : `audio/${soundFile}`;
@@ -702,7 +686,6 @@
       const audio = new Audio(audioUrl);
       audio.volume = volume;
       
-      // Stocke la référence pour le son de sélection
       if (soundType === 'select') {
         state.selectAudio = audio;
       }
@@ -731,18 +714,17 @@
   }
 
   /**
-   * Joue la musique du timer
+   * Joue la musique du timer (1min30secondes.mp3 — une lecture, durée = timer)
    */
   function playTimerSound() {
     try {
-      // Fallback vers chemin relatif si API non disponible
       const audioUrl = !CONFIG.isDevelopment
         ? `${window.location.origin}/overlay/audio/1minute30secondes.mp3`
         : `audio/1minute30secondes.mp3`;
       
       state.timerAudio = new Audio(audioUrl);
-      state.timerAudio.volume = 0.4;
-      state.timerAudio.loop = true;
+      state.timerAudio.volume = 0.5;
+      state.timerAudio.loop = false;
       state.timerAudio.play().catch(err => {
         if (CONFIG.isDevelopment) {
           console.warn('[OVERLAY] Timer audio échoué:', err);
@@ -767,13 +749,8 @@
       console.log('[OVERLAY] Démarrage de l\'overlay');
     }
     
-    // Récupère les boutons des réponses
     DOM.answerButtons = Array.from(DOM.answers.querySelectorAll('.answer'));
-    
-    // Initialise la communication
     initChannel();
-    
-    // Affiche l'écran d'attente
     showWaitingScreen();
     
     if (CONFIG.isDevelopment) {

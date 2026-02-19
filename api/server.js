@@ -70,7 +70,7 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-API-Key'],
+  allowedHeaders: ['Content-Type'],
   credentials: false
 };
 
@@ -104,27 +104,6 @@ router.use((req, res, next) => {
   limiter(req, res, next);
 });
 
-// Middleware de validation de la clé API
-const validateApiKey = (req, res, next) => {
-  // En développement, on ignore complètement la clé API
-  if (config.isDevelopment) {
-    return next(); // Pas de vérification en développement
-  }
-
-  // En production uniquement, validation stricte
-  if (!config.apiKey) {
-    logger.warn('API', 'Mode production sans clé API configurée - toutes les requêtes sont acceptées');
-    return next();
-  }
-
-  const apiKey = req.headers['x-api-key'];
-  if (!apiKey || apiKey !== config.apiKey) {
-    logger.warn('API', 'Tentative d\'accès sans clé API valide');
-    return res.status(401).json({ error: 'Clé API invalide ou manquante' });
-  }
-  next();
-};
-
 // Middleware d'erreur CORS
 router.use((err, req, res, next) => {
   if (err.message === 'CORS non autorisé pour cette origine') {
@@ -145,8 +124,8 @@ router.get('/health', (req, res) => {
   });
 });
 
-// Arrêt du serveur - PROTÉGÉ par API Key (ferme le serveur HTTP racine si fourni)
-router.post('/shutdown', validateApiKey, (req, res) => {
+// Arrêt du serveur (ferme le serveur HTTP racine si fourni)
+router.post('/shutdown', (req, res) => {
   logger.info('SERVER', 'Demande d\'arrêt reçue depuis l\'admin');
   res.json({ ok: true, message: 'Arrêt du serveur en cours...' });
 
@@ -163,8 +142,8 @@ router.post('/shutdown', validateApiKey, (req, res) => {
   }, 500);
 });
 
-// Command bus - PROTÉGÉ par API Key
-router.post('/command', validateApiKey, (req, res) => {
+// Command bus
+router.post('/command', (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Commande invalide' });
   }
@@ -190,22 +169,12 @@ const streamOpenLimiter = rateLimit({
 // Flux SSE : l’overlay reçoit les commandes en push (pas de polling)
 // Clé API en query car EventSource ne permet pas d’en-têtes personnalisés
 router.get('/command/stream', streamOpenLimiter, (req, res) => {
-  if (config.isProduction && config.apiKey && req.query.key !== config.apiKey) {
-    return res.status(401).json({ error: 'Clé API invalide ou manquante' });
-  }
-  const key = req.query.key || '';
-  const sameKeyCount = sseClients.filter((e) => e.key === key).length;
-  if (sameKeyCount >= MAX_SSE_PER_KEY) {
-    return res.status(429).json({
-      error: 'Trop de connexions simultanées pour cette clé. Fermez un overlay ou un onglet.'
-    });
-  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
-  const entry = { res, key };
+  const entry = { res, key: '' };
   sseClients.push(entry);
   res.write(`data: ${JSON.stringify(lastCommand)}\n\n`);
   req.on('close', () => {
@@ -214,13 +183,13 @@ router.get('/command/stream', streamOpenLimiter, (req, res) => {
   });
 });
 
-// Lecture des commandes - PROTÉGÉ par API Key (fallback polling)
-router.get('/command', validateApiKey, (_req, res) => {
+// Lecture des commandes (fallback polling)
+router.get('/command', (_req, res) => {
   res.json(lastCommand);
 });
 
-// État de l'overlay - PROTÉGÉ par API Key
-router.post('/state', validateApiKey, (req, res) => {
+// État de l'overlay
+router.post('/state', (req, res) => {
   if (!req.body) {
     return res.status(400).json({ error: 'État invalide' });
   }
@@ -228,12 +197,133 @@ router.post('/state', validateApiKey, (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/state', validateApiKey, (_req, res) => {
+router.get('/state', (_req, res) => {
   res.json(overlayState);
 });
 
 
 let sheetsClient = null;
+const dataDir = path.join(__dirname, '..', 'data');
+
+/**
+ * Au démarrage : importe tout depuis Google Sheets vers les JSON locaux.
+ * Après ce sync, l’app ne fait plus aucun appel réseau aux Sheets (usage 100 % local).
+ */
+async function syncSheetsToLocal() {
+  if (!sheetId || !saEmail || !saKey) {
+    logger.info('SYNC', 'Google Sheets non configuré — utilisation des JSON locaux existants.');
+    return;
+  }
+  const client = buildSheetsClient();
+  logger.info('SYNC', 'Import Google Sheets → JSON locaux en cours...');
+  const [questionsRes, themesRes, categoriesRes, levelsRes, matieresRes] = await Promise.all([
+    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: questionsRange }),
+    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: themesRange }),
+    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: categoriesRange }),
+    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: levelsRange }),
+    client.spreadsheets.values.get({ spreadsheetId: sheetId, range: matieresRange })
+  ]);
+  const questionsRows = questionsRes.data.values || [];
+  const themesRows = themesRes.data.values || [];
+  const categoriesRows = categoriesRes.data.values || [];
+  const levelsRows = levelsRes.data.values || [];
+  const matieresRows = matieresRes.data.values || [];
+
+  const cell = (row, idx) => String((row && row[idx] != null) ? row[idx] : '').trim();
+
+  const themesArr = themesRows
+    .map(row => {
+      const id = cell(row, 0);
+      if (!id) return null;
+      return { id, idCategory: cell(row, 1), idLevel: cell(row, 2), name: cell(row, 3), description: cell(row, 4) };
+    })
+    .filter(Boolean);
+  const categoriesArr = categoriesRows
+    .map(row => {
+      const id = cell(row, 0);
+      if (!id) return null;
+      return { id, name: cell(row, 1), startDate: cell(row, 2), endDate: cell(row, 3), idMatiere: cell(row, 4) };
+    })
+    .filter(Boolean);
+  const levelsArr = levelsRows
+    .map(row => (cell(row, 0) ? { id: cell(row, 0), name: cell(row, 1) } : null))
+    .filter(Boolean);
+  const hasLevelsCol = matieresRows.some(row => String(row[2] || '').trim());
+  const matieresArr = matieresRows
+    .map(row => {
+      const id = cell(row, 0);
+      const name = cell(row, 1);
+      if (!id || !name) return null;
+      const m = { id, name };
+      if (hasLevelsCol) m.levels = String(row[2] || '').split(',').map(s => s.trim()).filter(Boolean);
+      return m;
+    })
+    .filter(Boolean);
+
+  const themes = Object.fromEntries(themesArr.map(t => [t.id, t]));
+  const categories = Object.fromEntries(categoriesArr.map(c => [c.id, c]));
+  const levels = Object.fromEntries(levelsArr.map(l => [l.id, l.name]));
+  const matieres = Object.fromEntries(matieresArr.map(m => [m.id, m.name]));
+
+  const questionsMapped = questionsRows.map((row, idx) => {
+    let id, idTheme, idLevel, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion;
+    if (row.length >= 10) {
+      [id, idTheme, idLevel, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion] = row.map(v => String(v ?? '').trim());
+    } else {
+      [id, idTheme, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion] = row.map(v => String(v ?? '').trim());
+      idLevel = '';
+    }
+    id = String(id ?? '').trim();
+    idTheme = String(idTheme ?? '').trim();
+    idLevel = String(idLevel ?? '').trim();
+    const theme = idTheme ? themes[idTheme] : null;
+    const category = theme ? categories[theme.idCategory] : null;
+    const matiere = category ? matieres[category.idMatiere] : null;
+    const effectiveLevelId = (theme && theme.idLevel != null && String(theme.idLevel).trim()) ? String(theme.idLevel).trim() : (idLevel != null ? String(idLevel).trim() : '');
+    const niveau = effectiveLevelId ? (levels[effectiveLevelId] || '') : '';
+
+    const allPropositions = [prop1, prop2, prop3, rightAnswer].filter(Boolean);
+    for (let i = allPropositions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allPropositions[i], allPropositions[j]] = [allPropositions[j], allPropositions[i]];
+    }
+    const bonneReponseIndex = allPropositions.indexOf(rightAnswer);
+
+    return {
+      id: id || idx + 1,
+      idTheme,
+      idLevel: effectiveLevelId,
+      idCategory: theme?.idCategory || null,
+      idMatiere: category?.idMatiere || null,
+      question: question || '',
+      propositions: allPropositions,
+      bonneReponse: bonneReponseIndex,
+      explication: explications || '',
+      theme: theme?.name || '',
+      category: category?.name || '',
+      matiere: matiere || '',
+      niveau: niveau || '',
+      duration: 30
+    };
+  }).filter(q => q.question && q.propositions.length === 4);
+
+  if (!questionsMapped.length) throw new Error('Aucune question valide dans le Sheet');
+
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, 'themes.json'), JSON.stringify(themesArr, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(dataDir, 'categories.json'), JSON.stringify(categoriesArr, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(dataDir, 'levels.json'), JSON.stringify(levelsArr, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(dataDir, 'matieres.json'), JSON.stringify(matieresArr, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(dataDir, 'questions.json'), JSON.stringify(questionsMapped, null, 2), 'utf-8');
+
+  logger.info('SYNC', `Import terminé: ${questionsMapped.length} questions, ${themesArr.length} thèmes, ${categoriesArr.length} catégories, ${levelsArr.length} niveaux, ${matieresArr.length} matières.`);
+}
+
+async function init() {
+  if (sheetId && saEmail && saKey) {
+    await syncSheetsToLocal();
+  }
+}
 
 function loadQuestions() {
   try {
@@ -382,194 +472,12 @@ function buildSheetsClient() {
   return sheetsClient;
 }
 
-async function fetchQuestionsFromSheets() {
+router.get('/matieres', (_req, res) => {
   try {
-    const client = buildSheetsClient();
-    
-    // Lecture de tous les onglets en parallèle
-    const [questionsRes, themesRes, categoriesRes, levelsRes, matieresRes] = await Promise.all([
-      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: questionsRange }),
-      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: themesRange }),
-      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: categoriesRange }),
-      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: levelsRange }),
-      client.spreadsheets.values.get({ spreadsheetId: sheetId, range: matieresRange })
-    ]);
-
-  const questionsRows = questionsRes.data.values || [];
-  const themesRows = themesRes.data.values || [];
-  const categoriesRows = categoriesRes.data.values || [];
-  const levelsRows = levelsRes.data.values || [];
-  const matieresRows = matieresRes.data.values || [];
-
-  if (!questionsRows.length) throw new Error('Aucune question trouvée dans le Sheet');
-
-  const cell = (row, idx) => String((row && row[idx] != null) ? row[idx] : '').trim();
-
-  // Construction des tables de lookup
-  const themes = Object.fromEntries(
-    // MLD attendu: Theme = (ID, IDCategory, IDLevel, Name, Description)
-    themesRows
-      .map(row => {
-        const id = cell(row, 0);
-        if (!id) return null;
-        return [
-          id,
-          {
-            id,
-            idCategory: cell(row, 1),
-            idLevel: cell(row, 2),
-            name: cell(row, 3),
-            description: cell(row, 4)
-          }
-        ];
-      })
-      .filter(Boolean)
-  );
-  const categories = Object.fromEntries(
-    categoriesRows
-      .map(row => {
-        const id = cell(row, 0);
-        if (!id) return null;
-        return [
-          id,
-          {
-            id,
-            name: cell(row, 1),
-            startDate: cell(row, 2),
-            endDate: cell(row, 3),
-            idMatiere: cell(row, 4)
-          }
-        ];
-      })
-      .filter(Boolean)
-  );
-  const levels = Object.fromEntries(
-    levelsRows
-      .map(row => [cell(row, 0), cell(row, 1)])
-      .filter(([id]) => Boolean(id))
-  );
-  const matieres = Object.fromEntries(
-    matieresRows
-      .map(row => [cell(row, 0), cell(row, 1)])
-      .filter(([id]) => Boolean(id))
-  );
-
-  // Mapping des questions avec jointures
-  const mapped = questionsRows.map((row, idx) => {
-    // Support de 2 formats (compat):
-    // - Nouveau MLD: Questions = (ID, IDTheme, Question, Right_Answer, Prop1, Prop2, Prop3, Explications, Type_Question)  -> 9 colonnes
-    // - Ancien format: Questions = (ID, IDTheme, IDLevel, Question, ...) -> 10 colonnes
-    let id, idTheme, idLevel, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion;
-    if (row.length >= 10) {
-      [id, idTheme, idLevel, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion] = row.map(v => String(v ?? '').trim());
-    } else {
-      [id, idTheme, question, rightAnswer, prop1, prop2, prop3, explications, typeQuestion] = row.map(v => String(v ?? '').trim());
-    }
-
-    id = String(id ?? '').trim();
-    idTheme = String(idTheme ?? '').trim();
-    idLevel = String(idLevel ?? '').trim();
-    question = String(question ?? '').trim();
-    rightAnswer = String(rightAnswer ?? '').trim();
-    prop1 = String(prop1 ?? '').trim();
-    prop2 = String(prop2 ?? '').trim();
-    prop3 = String(prop3 ?? '').trim();
-    explications = String(explications ?? '').trim();
-    typeQuestion = String(typeQuestion ?? '').trim();
-
-    const theme = idTheme ? themes[idTheme] : null;
-    const category = theme ? categories[theme.idCategory] : null;
-    const matiere = category ? matieres[category.idMatiere] : null;
-    // Dans le MLD: le niveau est celui du thème. Si l'ancien format fournit un idLevel, on le tolère,
-    // mais on privilégie Theme.idLevel quand il existe.
-    const effectiveLevelId = (theme && theme.idLevel != null && String(theme.idLevel).trim())
-      ? String(theme.idLevel).trim()
-      : (idLevel != null ? String(idLevel).trim() : '');
-    const niveau = effectiveLevelId ? levels[effectiveLevelId] : '';
-
-    // Construction des 4 propositions : les 3 fausses + la bonne réponse
-    // On mélange pour que la bonne réponse ne soit pas toujours en position 0
-    const allPropositions = [prop1, prop2, prop3, rightAnswer].filter(Boolean);
-    
-    // Mélange aléatoire (Fisher-Yates)
-    for (let i = allPropositions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allPropositions[i], allPropositions[j]] = [allPropositions[j], allPropositions[i]];
-    }
-
-    // Trouver l'index de la bonne réponse après mélange
-    const bonneReponseIndex = allPropositions.indexOf(rightAnswer);
-
-    return {
-      id: id || idx + 1,
-      idTheme: idTheme,
-      idLevel: effectiveLevelId,
-      idCategory: theme?.idCategory || null,
-      idMatiere: category?.idMatiere || null,
-      question: question || '',
-      propositions: allPropositions,
-      bonneReponse: bonneReponseIndex,
-      explication: explications || '',
-      theme: theme?.name || '',
-      category: category?.name || '',
-      matiere: matiere || '',
-      niveau: niveau || '',
-      duration: 30
-    };
-  }).filter(q => q.question && q.propositions.length === 4);
-
-    if (!mapped.length) throw new Error('Données Sheets invalides');
-    return mapped;
-  } catch (err) {
-    logger.error('SHEETS', `Erreur chargement Google Sheets: ${err.message}`);
-    throw err; // Re-lancer pour déclencher le fallback JSON
-  }
-}
-
-router.get('/matieres', async (_req, res) => {
-  try {
-    if (sheetId && saEmail && saKey) {
-      try {
-        const client = buildSheetsClient();
-        const matieresRes = await client.spreadsheets.values.get({ 
-          spreadsheetId: sheetId, 
-          range: matieresRange 
-        });
-        const matieresRows = matieresRes.data.values || [];
-        // MLD attendu: Matiere = (ID, Nom)
-        // On tolère une 3e colonne optionnelle "levels" (liste) pour rétrocompat, mais le modèle ne l'exige pas.
-        const hasLevelsColumn = matieresRows.some(row => String(row[2] || '').trim());
-        const matieres = matieresRows.map(row => ({
-          id: String(row[0] ?? '').trim(),
-          name: String(row[1] ?? '').trim(),
-          ...(hasLevelsColumn
-            ? { levels: String(row[2] || '').split(',').map(s => s.trim()).filter(Boolean) }
-            : {})
-        })).filter(m => m.id && m.name);
-        
-        if (!validateMatieres(matieres)) {
-          logger.warn('DATA', 'Matières Sheets invalides, fallback JSON');
-          throw new Error('Format invalide');
-        }
-        logger.info('API', `Matières chargées depuis Google Sheets: ${matieres.length}`);
-        return res.json(matieres);
-      } catch (sheetsErr) {
-        logger.warn('API', `Erreur Google Sheets, fallback JSON: ${sheetsErr.message}`);
-        // Continue vers le fallback JSON
-      }
-    }
-    // Fallback JSON local
     const matieresPath = path.join(__dirname, '..', 'data', 'matieres.json');
     const matieresJSON = fs.readFileSync(matieresPath, 'utf-8');
     const matieres = JSON.parse(matieresJSON);
-    
-    logger.info('API', `Matières chargées depuis JSON local: ${matieres.length}`);
-    if (matieres.length > 0) {
-      logger.info('API', `Première matière: ${JSON.stringify(matieres[0])}`);
-    }
-    
     if (!validateMatieres(matieres)) {
-      logger.error('DATA', 'Format matieres.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
     }
     res.json(matieres);
@@ -579,34 +487,12 @@ router.get('/matieres', async (_req, res) => {
   }
 });
 
-router.get('/levels', async (_req, res) => {
+router.get('/levels', (_req, res) => {
   try {
-    if (sheetId && saEmail && saKey) {
-      try {
-        const client = buildSheetsClient();
-        const levelsRes = await client.spreadsheets.values.get({ 
-          spreadsheetId: sheetId, 
-          range: levelsRange 
-        });
-        const levelsRows = levelsRes.data.values || [];
-        const levels = levelsRows
-          .map(row => ({ id: String(row[0] ?? '').trim(), name: String(row[1] ?? '').trim() }))
-          .filter(l => l.id && l.name);
-        if (!validateLevels(levels)) {
-          logger.warn('DATA', 'Niveaux Sheets invalides, fallback JSON');
-          throw new Error('Format invalide');
-        }
-        return res.json(levels);
-      } catch (sheetsErr) {
-        logger.warn('API', `Erreur Google Sheets niveaux, fallback JSON: ${sheetsErr.message}`);
-      }
-    }
-    // Fallback JSON local
     const levelsPath = path.join(__dirname, '..', 'data', 'levels.json');
     const levelsJSON = fs.readFileSync(levelsPath, 'utf-8');
     const levels = JSON.parse(levelsJSON);
     if (!validateLevels(levels)) {
-      logger.error('DATA', 'Format levels.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
     }
     res.json(levels);
@@ -616,81 +502,28 @@ router.get('/levels', async (_req, res) => {
   }
 });
 
-router.get('/categories', async (req, res) => {
+router.get('/categories', (req, res) => {
   try {
     const matiereId = req.query.matiereId;
     const levelId = req.query.levelId;
-    
-    // Valider matiereId si fourni
     if (matiereId && !validateId(String(matiereId))) {
       return res.status(400).json({ error: 'ID de matière invalide' });
     }
-    // Valider levelId si fourni
     if (levelId && !validateId(String(levelId))) {
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
-    
-    if (sheetId && saEmail && saKey) {
-      try {
-        const client = buildSheetsClient();
-        const categoriesRes = await client.spreadsheets.values.get({ spreadsheetId: sheetId, range: categoriesRange });
-        const categoriesRows = categoriesRes.data.values || [];
-        let themesRows = [];
-        if (levelId) {
-          const themesRes = await client.spreadsheets.values.get({ spreadsheetId: sheetId, range: themesRange });
-          themesRows = themesRes.data.values || [];
-        }
-        let categories = categoriesRows.map(row => ({ 
-          id: String(row[0] ?? '').trim(),
-          name: String(row[1] ?? '').trim(),
-          startDate: String(row[2] ?? '').trim(),
-          endDate: String(row[3] ?? '').trim(),
-          idMatiere: String(row[4] ?? '').trim()
-        })).filter(c => c.id && c.name && c.idMatiere);
-        
-        if (!validateCategories(categories)) {
-          logger.warn('DATA', 'Catégories Sheets invalides, fallback JSON');
-          throw new Error('Format invalide');
-        }
-        
-        if (matiereId) {
-          categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
-        }
-
-        // Filtre par niveau via Theme(IDLevel) => Category
-        if (levelId) {
-          const allowedCategoryIds = new Set(
-            themesRows
-              .filter(r => String(r[2] ?? '').trim() === String(levelId))
-              .map(r => String(r[1] ?? '').trim())
-              .filter(Boolean)
-          );
-          categories = categories.filter(c => allowedCategoryIds.has(String(c.id)));
-        }
-        
-        return res.json(categories);
-      } catch (sheetsErr) {
-        logger.warn('API', `Erreur Google Sheets catégories, fallback JSON: ${sheetsErr.message}`);
-      }
-    }
-    // Fallback JSON local
     const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
     const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
     let categories = JSON.parse(categoriesJSON);
-    
     if (!validateCategories(categories)) {
-      logger.error('DATA', 'Format categories.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
     }
-    
     if (matiereId) {
       categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
     }
-
     if (levelId) {
       const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
-      const themesJSON = fs.readFileSync(themesPath, 'utf-8');
-      const themes = JSON.parse(themesJSON);
+      const themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
       const allowedCategoryIds = new Set(
         (themes || [])
           .filter(t => String(t.idLevel ?? '') === String(levelId))
@@ -699,7 +532,6 @@ router.get('/categories', async (req, res) => {
       );
       categories = categories.filter(c => allowedCategoryIds.has(String(c.id)));
     }
-    
     res.json(categories);
   } catch (err) {
     logger.error('API', `Erreur chargement catégories: ${err.message}`);
@@ -707,72 +539,27 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-router.get('/themes', async (req, res) => {
+router.get('/themes', (req, res) => {
   try {
     const categoryId = req.query.categoryId;
     const levelId = req.query.levelId;
-    
-    // Valider categoryId si fourni
     if (categoryId && !validateId(String(categoryId))) {
       return res.status(400).json({ error: 'ID de catégorie invalide' });
     }
-    // Valider levelId si fourni
     if (levelId && !validateId(String(levelId))) {
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
-    
-    if (sheetId && saEmail && saKey) {
-      try {
-        const client = buildSheetsClient();
-        const themesRes = await client.spreadsheets.values.get({ 
-          spreadsheetId: sheetId, 
-          range: themesRange 
-        });
-        const themesRows = themesRes.data.values || [];
-        let themes = themesRows.map(row => ({ 
-          id: String(row[0] ?? '').trim(),
-          idCategory: String(row[1] ?? '').trim(),
-          idLevel: String(row[2] ?? '').trim(),
-          name: String(row[3] ?? '').trim(),
-          description: String(row[4] ?? '').trim()
-        })).filter(t => t.id && t.idCategory && t.idLevel && t.name);
-        
-        if (!validateThemes(themes)) {
-          logger.warn('DATA', 'Thèmes Sheets invalides, fallback JSON');
-          throw new Error('Format invalide');
-        }
-        
-        if (categoryId) {
-          themes = themes.filter(t => String(t.idCategory) === String(categoryId));
-        }
-
-        if (levelId) {
-          themes = themes.filter(t => String(t.idLevel) === String(levelId));
-        }
-        
-        return res.json(themes);
-      } catch (sheetsErr) {
-        logger.warn('API', `Erreur Google Sheets thèmes, fallback JSON: ${sheetsErr.message}`);
-      }
-    }
-    // Fallback JSON local
     const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
-    const themesJSON = fs.readFileSync(themesPath, 'utf-8');
-    let themes = JSON.parse(themesJSON);
-    
+    let themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
     if (!validateThemes(themes)) {
-      logger.error('DATA', 'Format themes.json invalide');
       return res.status(500).json({ error: 'Format de données invalide' });
     }
-    
     if (categoryId) {
       themes = themes.filter(t => String(t.idCategory) === String(categoryId));
     }
-
     if (levelId) {
       themes = themes.filter(t => String(t.idLevel) === String(levelId));
     }
-    
     res.json(themes);
   } catch (err) {
     logger.error('API', `Erreur chargement thèmes: ${err.message}`);
@@ -780,7 +567,7 @@ router.get('/themes', async (req, res) => {
   }
 });
 
-router.get('/random', async (req, res) => {
+router.get('/random', (req, res) => {
   try {
     const { matiereId, levelId, categoryId, themeId } = req.query;
     // #region agent log
@@ -800,48 +587,22 @@ router.get('/random', async (req, res) => {
       return res.status(400).json({ error: 'ID de thème invalide' });
     }
     
-    let questions = [];
-    
-    // Source des questions:
-    // - Si Google Sheets est configuré, les questions DOIVENT venir du Sheet (pas de fallback silencieux).
-    // - Sinon, fallback JSON local.
-    const sheetsConfigured = Boolean(sheetId && saEmail && saKey);
-    if (sheetsConfigured) {
-      try {
-        questions = await fetchQuestionsFromSheets();
-      } catch (err) {
-        logger.error('API', 'Erreur Google Sheets (questions requises depuis Sheets)', { error: err.message });
-        return res.status(503).json({
-          error: 'Impossible de charger les questions depuis Google Sheets',
-          details: err.message
-        });
-      }
-    } else {
-      questions = loadQuestions();
-    }
+    let questions = loadQuestions();
     // #region agent log
-    agentLog({ hypothesisId: 'H2', location: 'api/server.js:random:afterLoad', message: 'questions loaded', data: { count: questions.length, sheetsConfigured } });
+    agentLog({ hypothesisId: 'H2', location: 'api/server.js:random:afterLoad', message: 'questions loaded', data: { count: questions.length } });
     // #endregion
     // Filtrer selon les critères
-    // Filtrer par matière via la catégorie
     if (matiereId) {
-      if (sheetsConfigured) {
-        // Les questions Sheets sont enrichies avec idMatiere lors du mapping
-        questions = questions.filter(q => String(q.idMatiere || '') === String(matiereId));
-      } else {
-        // Mode JSON local: déduire la matière via categories.json
-        const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
-        const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
-        const categories = JSON.parse(categoriesJSON);
-        const categoryIdsForMatiere = categories
-          .filter(c => String(c.idMatiere) === String(matiereId))
-          .map(c => String(c.id));
-        
-        questions = questions.filter(q => {
-          const qCategoryId = String(q.idCategory || '');
-          return categoryIdsForMatiere.includes(qCategoryId);
-        });
-      }
+      const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
+      const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
+      const categories = JSON.parse(categoriesJSON);
+      const categoryIdsForMatiere = categories
+        .filter(c => String(c.idMatiere) === String(matiereId))
+        .map(c => String(c.id));
+      questions = questions.filter(q => {
+        const qCategoryId = String(q.idCategory || '');
+        return categoryIdsForMatiere.includes(qCategoryId);
+      });
     }
     
     if (levelId) {
@@ -878,10 +639,54 @@ router.get('/random', async (req, res) => {
   }
 });
 
+/**
+ * GET /questions — Liste toutes les questions pour les filtres donnés (même logique que /random).
+ * Utilisé par l'admin pour enchaîner les questions du thème sans répétition.
+ */
+router.get('/questions', (req, res) => {
+  try {
+    const { matiereId, levelId, categoryId, themeId } = req.query;
+    if (matiereId && !validateId(String(matiereId))) {
+      return res.status(400).json({ error: 'ID de matière invalide' });
+    }
+    if (levelId && !validateId(String(levelId))) {
+      return res.status(400).json({ error: 'ID de niveau invalide' });
+    }
+    if (categoryId && !validateId(String(categoryId))) {
+      return res.status(400).json({ error: 'ID de catégorie invalide' });
+    }
+    if (themeId && !validateId(String(themeId))) {
+      return res.status(400).json({ error: 'ID de thème invalide' });
+    }
+    let questions = loadQuestions();
+    if (matiereId) {
+      const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
+      const categories = JSON.parse(fs.readFileSync(categoriesPath, 'utf-8'));
+      const categoryIdsForMatiere = categories
+        .filter(c => String(c.idMatiere) === String(matiereId))
+        .map(c => String(c.id));
+      questions = questions.filter(q => categoryIdsForMatiere.includes(String(q.idCategory || '')));
+    }
+    if (levelId) {
+      questions = questions.filter(q => String(q.idLevel) === String(levelId));
+    }
+    if (categoryId) {
+      questions = questions.filter(q => String(q.idCategory) === String(categoryId));
+    }
+    if (themeId) {
+      questions = questions.filter(q => String(q.idTheme) === String(themeId));
+    }
+    res.json(questions);
+  } catch (err) {
+    logger.error('API', `Erreur GET /questions: ${err.message}`);
+    res.status(500).json({ error: 'Impossible de charger les questions' });
+  }
+});
+
 // Middleware d'erreur global (DOIT être à la fin)
 router.use((err, req, res, next) => {
   logger.error('SERVER', `Erreur non gérée: ${err.message}`);
   res.status(500).json({ error: 'Erreur serveur interne' });
 });
 
-module.exports = { router, setServer };
+module.exports = { router, setServer, init };

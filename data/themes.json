@@ -2,23 +2,1128 @@
   {
     "id": "1",
     "idCategory": "1",
-    "idLevel": "1",
-    "name": "Égypte antique",
-    "description": "Pharaons, pyramides et mythologie."
+    "idLevel": "3",
+    "name": "L'expansion et la conquête",
+    "description": ""
   },
   {
     "id": "2",
     "idCategory": "1",
-    "idLevel": "2",
-    "name": "Grèce antique",
-    "description": "Cités grecques, mythes et démocratie."
+    "idLevel": "3",
+    "name": "Les Guerres Puniques",
+    "description": ""
   },
   {
     "id": "3",
     "idCategory": "1",
     "idLevel": "3",
-    "name": "Rome antique",
-    "description": "République, Empire et héritage romain."
+    "name": "Crise des institutions",
+    "description": ""
+  },
+  {
+    "id": "4",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "L'émergence des Imperatores",
+    "description": ""
+  },
+  {
+    "id": "5",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "Les crises agraires et les Gracques",
+    "description": ""
+  },
+  {
+    "id": "6",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "Transformations économiques",
+    "description": ""
+  },
+  {
+    "id": "7",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "Mutations sociales et esclavage",
+    "description": ""
+  },
+  {
+    "id": "8",
+    "idCategory": "1",
+    "idLevel": "3",
+    "name": "L'hellénisation culturelle",
+    "description": ""
+  },
+  {
+    "id": "9",
+    "idCategory": "2",
+    "idLevel": "1",
+    "name": "Byzance et l'Europe carolingienne",
+    "description": ""
+  },
+  {
+    "id": "10",
+    "idCategory": "2",
+    "idLevel": "1",
+    "name": "Le monde de l'islam",
+    "description": ""
+  },
+  {
+    "id": "11",
+    "idCategory": "2",
+    "idLevel": "1",
+    "name": "L'Occident féodal",
+    "description": ""
+  },
+  {
+    "id": "12",
+    "idCategory": "3",
+    "idLevel": "1",
+    "name": "Transformations de l'Europe et ouverture sur le monde",
+    "description": ""
+  },
+  {
+    "id": "13",
+    "idCategory": "3",
+    "idLevel": "1",
+    "name": "Affirmation de l'État monarchique",
+    "description": ""
+  },
+  {
+    "id": "14",
+    "idCategory": "2",
+    "idLevel": "1",
+    "name": "Contacts entre chrétiens et musulmans",
+    "description": ""
+  },
+  {
+    "id": "15",
+    "idCategory": "2",
+    "idLevel": "1",
+    "name": "Chrétientés et Islam",
+    "description": ""
+  },
+  {
+    "id": "16",
+    "idCategory": "3",
+    "idLevel": "1",
+    "name": "Commerce et Esclavage au XVIIIe",
+    "description": ""
+  },
+  {
+    "id": "17",
+    "idCategory": "3",
+    "idLevel": "1",
+    "name": "Lumières et Révolutions",
+    "description": ""
+  },
+  {
+    "id": "18",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "Sociétés de l'âge industriel",
+    "description": ""
+  },
+  {
+    "id": "19",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "Conquêtes coloniales",
+    "description": ""
+  },
+  {
+    "id": "20",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "La Troisième République",
+    "description": ""
+  },
+  {
+    "id": "21",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "Guerres Mondiales au XXe",
+    "description": ""
+  },
+  {
+    "id": "22",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "Régimes Totalitaires",
+    "description": ""
+  },
+  {
+    "id": "23",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "Le Monde depuis 1945",
+    "description": ""
+  },
+  {
+    "id": "24",
+    "idCategory": "4",
+    "idLevel": "1",
+    "name": "La Cinquième République",
+    "description": ""
+  },
+  {
+    "id": "25",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Ve République",
+    "description": ""
+  },
+  {
+    "id": "26",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Construction européenne",
+    "description": ""
+  },
+  {
+    "id": "27",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Décolonisation",
+    "description": ""
+  },
+  {
+    "id": "28",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "Le Programme du CNR",
+    "description": ""
+  },
+  {
+    "id": "29",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'Année 1968",
+    "description": ""
+  },
+  {
+    "id": "30",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'Égalité et la Parité",
+    "description": ""
+  },
+  {
+    "id": "31",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Décentralisation",
+    "description": ""
+  },
+  {
+    "id": "32",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Laïcité",
+    "description": ""
+  },
+  {
+    "id": "33",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "Les Nouveaux Droits Sociaux",
+    "description": ""
+  },
+  {
+    "id": "34",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Révolution française et l'Empire",
+    "description": ""
+  },
+  {
+    "id": "35",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'Europe entre restauration et révolution",
+    "description": ""
+  },
+  {
+    "id": "36",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'âge démocratique en France",
+    "description": ""
+  },
+  {
+    "id": "37",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'industrialisation de la France",
+    "description": ""
+  },
+  {
+    "id": "38",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "Construction des États par la guerre",
+    "description": ""
+  },
+  {
+    "id": "39",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Troisième République",
+    "description": ""
+  },
+  {
+    "id": "40",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "Mutations socioculturelles",
+    "description": ""
+  },
+  {
+    "id": "41",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "L'empire colonial français",
+    "description": ""
+  },
+  {
+    "id": "42",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La Grande Guerre",
+    "description": ""
+  },
+  {
+    "id": "43",
+    "idCategory": "1",
+    "idLevel": "2",
+    "name": "La Méditerranée antique",
+    "description": ""
+  },
+  {
+    "id": "44",
+    "idCategory": "2",
+    "idLevel": "2",
+    "name": "La Méditerranée médiévale",
+    "description": ""
+  },
+  {
+    "id": "45",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "L'ouverture atlantique",
+    "description": ""
+  },
+  {
+    "id": "46",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "Renaissance et Humanisme",
+    "description": ""
+  },
+  {
+    "id": "47",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "Réformes religieuses",
+    "description": ""
+  },
+  {
+    "id": "48",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "L'affirmation de l'État en France",
+    "description": ""
+  },
+  {
+    "id": "49",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "Le modèle britannique",
+    "description": ""
+  },
+  {
+    "id": "50",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "Les Lumières et les sciences",
+    "description": ""
+  },
+  {
+    "id": "51",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "La société française d'Ancien Régime",
+    "description": ""
+  },
+  {
+    "id": "52",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "La Révolution américaine",
+    "description": ""
+  },
+  {
+    "id": "53",
+    "idCategory": "3",
+    "idLevel": "2",
+    "name": "La monarchie absolue de Louis XIV",
+    "description": ""
+  },
+  {
+    "id": "54",
+    "idCategory": "1",
+    "idLevel": "2",
+    "name": "La Méditerranée antique",
+    "description": ""
+  },
+  {
+    "id": "55",
+    "idCategory": "4",
+    "idLevel": "2",
+    "name": "La construction européenne",
+    "description": ""
+  },
+  {
+    "id": "56",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Transformations de la société française",
+    "description": ""
+  },
+  {
+    "id": "57",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "L'Europe vers 1780",
+    "description": ""
+  },
+  {
+    "id": "58",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "La Révolution française",
+    "description": ""
+  },
+  {
+    "id": "59",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "L'émergence des nationalités",
+    "description": ""
+  },
+  {
+    "id": "60",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "La Révolution industrielle",
+    "description": ""
+  },
+  {
+    "id": "61",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Ascension de la bourgeoisie",
+    "description": ""
+  },
+  {
+    "id": "62",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Le Printemps des peuples",
+    "description": ""
+  },
+  {
+    "id": "63",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "L'Impérialisme colonial",
+    "description": ""
+  },
+  {
+    "id": "64",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "L'entrée dans la Première Guerre mondiale",
+    "description": ""
+  },
+  {
+    "id": "65",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Démocratie libérale",
+    "description": ""
+  },
+  {
+    "id": "66",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Traumatisme de la Grande Guerre",
+    "description": ""
+  },
+  {
+    "id": "67",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Règlement de la paix (1919-1923)",
+    "description": ""
+  },
+  {
+    "id": "68",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Crise économique de 1929",
+    "description": ""
+  },
+  {
+    "id": "69",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Démarrage de la construction européenne",
+    "description": ""
+  },
+  {
+    "id": "70",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Europe gaullienne (1958-1969)",
+    "description": ""
+  },
+  {
+    "id": "71",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Chute du Mur et Traité de Maastricht",
+    "description": ""
+  },
+  {
+    "id": "72",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Guerres révolutionnaires et napoléoniennes",
+    "description": ""
+  },
+  {
+    "id": "73",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Guerre de Sécession (1861-1865)",
+    "description": ""
+  },
+  {
+    "id": "74",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Première Guerre mondiale",
+    "description": ""
+  },
+  {
+    "id": "75",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Guerre froide et ère nucléaire",
+    "description": ""
+  },
+  {
+    "id": "76",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "La Grande Guerre",
+    "description": ""
+  },
+  {
+    "id": "77",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Affaire Dreyfus",
+    "description": ""
+  },
+  {
+    "id": "78",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Bilan de l'après-guerre (1920)",
+    "description": ""
+  },
+  {
+    "id": "79",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Fascisme",
+    "description": ""
+  },
+  {
+    "id": "80",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Totalitarisme",
+    "description": ""
+  },
+  {
+    "id": "81",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "National-socialisme (Nazisme)",
+    "description": ""
+  },
+  {
+    "id": "82",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Le Reichstag et sa politique",
+    "description": ""
+  },
+  {
+    "id": "83",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Shoah",
+    "description": ""
+  },
+  {
+    "id": "84",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Démocratie",
+    "description": ""
+  },
+  {
+    "id": "85",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "République",
+    "description": ""
+  },
+  {
+    "id": "86",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Révolution de 1789",
+    "description": ""
+  },
+  {
+    "id": "87",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "IIIe République",
+    "description": ""
+  },
+  {
+    "id": "88",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "IVe République",
+    "description": ""
+  },
+  {
+    "id": "89",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Régime de Vichy",
+    "description": ""
+  },
+  {
+    "id": "90",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Laïcité",
+    "description": ""
+  },
+  {
+    "id": "91",
+    "idCategory": "4",
+    "idLevel": "3",
+    "name": "Suffrage universel masculin",
+    "description": ""
+  },
+  {
+    "id": "92",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Absolutisme",
+    "description": ""
+  },
+  {
+    "id": "93",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Domaine royal",
+    "description": ""
+  },
+  {
+    "id": "94",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Parlementarisme (Angleterre)",
+    "description": ""
+  },
+  {
+    "id": "95",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Lois fondamentales",
+    "description": ""
+  },
+  {
+    "id": "96",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Prérogative royale",
+    "description": ""
+  },
+  {
+    "id": "97",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "États généraux",
+    "description": ""
+  },
+  {
+    "id": "98",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Intendants",
+    "description": ""
+  },
+  {
+    "id": "99",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Vénalité des offices",
+    "description": ""
+  },
+  {
+    "id": "100",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Conseil privé (Privy Council)",
+    "description": ""
+  },
+  {
+    "id": "101",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Désenclavement",
+    "description": ""
+  },
+  {
+    "id": "102",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Grandes Découvertes",
+    "description": ""
+  },
+  {
+    "id": "103",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Caravelle",
+    "description": ""
+  },
+  {
+    "id": "104",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Thalassocratie portugaise",
+    "description": ""
+  },
+  {
+    "id": "105",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Empire espagnol",
+    "description": ""
+  },
+  {
+    "id": "106",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Régime de l'Exclusif",
+    "description": ""
+  },
+  {
+    "id": "107",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Économie sucrière",
+    "description": ""
+  },
+  {
+    "id": "108",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Mondialisation",
+    "description": ""
+  },
+  {
+    "id": "109",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Monarchie absolue en crise",
+    "description": ""
+  },
+  {
+    "id": "110",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La Régence et la polysynodie",
+    "description": ""
+  },
+  {
+    "id": "111",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Le ministériat de Fleury",
+    "description": ""
+  },
+  {
+    "id": "112",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Une société d'ordres contestée",
+    "description": ""
+  },
+  {
+    "id": "113",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Mutations économiques et prospérité",
+    "description": ""
+  },
+  {
+    "id": "114",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La France des Lumières",
+    "description": ""
+  },
+  {
+    "id": "115",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "L'impasse des réformes sous Louis XVI",
+    "description": ""
+  },
+  {
+    "id": "116",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Équilibre des puissances",
+    "description": ""
+  },
+  {
+    "id": "117",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Monarchie limitée",
+    "description": ""
+  },
+  {
+    "id": "118",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Despotisme éclairé",
+    "description": ""
+  },
+  {
+    "id": "119",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Révolution industrielle",
+    "description": ""
+  },
+  {
+    "id": "120",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Commerce mondial",
+    "description": ""
+  },
+  {
+    "id": "121",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Europe des Lumières",
+    "description": ""
+  },
+  {
+    "id": "122",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Dynamiques démographiques",
+    "description": ""
+  },
+  {
+    "id": "123",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Les Grands / Haute noblesse",
+    "description": ""
+  },
+  {
+    "id": "124",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La Fronde (1648-1653)",
+    "description": ""
+  },
+  {
+    "id": "125",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Le système curial de Versailles",
+    "description": ""
+  },
+  {
+    "id": "126",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La noblesse seconde",
+    "description": ""
+  },
+  {
+    "id": "127",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La noblesse de robe",
+    "description": ""
+  },
+  {
+    "id": "128",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Méritocratie et anoblissement",
+    "description": ""
+  },
+  {
+    "id": "129",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La réaction nobiliaire au XVIIIe siècle",
+    "description": ""
+  },
+  {
+    "id": "130",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "La noblesse pauvre",
+    "description": ""
+  },
+  {
+    "id": "131",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Édit de Nantes",
+    "description": ""
+  },
+  {
+    "id": "132",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Conjuration d'Amboise",
+    "description": ""
+  },
+  {
+    "id": "133",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Iconoclasme",
+    "description": ""
+  },
+  {
+    "id": "134",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Saint-Barthélemy",
+    "description": ""
+  },
+  {
+    "id": "135",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Huguenots",
+    "description": ""
+  },
+  {
+    "id": "136",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Ligueurs",
+    "description": ""
+  },
+  {
+    "id": "137",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Monarchomaques",
+    "description": ""
+  },
+  {
+    "id": "138",
+    "idCategory": "3",
+    "idLevel": "3",
+    "name": "Théorie bicorporelle",
+    "description": ""
+  },
+  {
+    "id": "139",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Mérovingiens",
+    "description": ""
+  },
+  {
+    "id": "140",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Carolingiens",
+    "description": ""
+  },
+  {
+    "id": "141",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Regnum Francorum",
+    "description": ""
+  },
+  {
+    "id": "142",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Épiscopat",
+    "description": ""
+  },
+  {
+    "id": "143",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Monachisme",
+    "description": ""
+  },
+  {
+    "id": "144",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Renaissance carolingienne",
+    "description": ""
+  },
+  {
+    "id": "145",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Féodalité (Haut Moyen-Âge)",
+    "description": ""
+  },
+  {
+    "id": "146",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Vassalité",
+    "description": ""
+  },
+  {
+    "id": "147",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Villa (Grand domaine)",
+    "description": ""
+  },
+  {
+    "id": "148",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Arianisme",
+    "description": ""
+  },
+  {
+    "id": "149",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Affaiblissement du pouvoir royal",
+    "description": ""
+  },
+  {
+    "id": "150",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Réforme grégorienne",
+    "description": ""
+  },
+  {
+    "id": "151",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Seigneurie",
+    "description": ""
+  },
+  {
+    "id": "152",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Principautés",
+    "description": ""
+  },
+  {
+    "id": "153",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Sacre royal",
+    "description": ""
+  },
+  {
+    "id": "154",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Église impériale (Reichskirche)",
+    "description": ""
+  },
+  {
+    "id": "155",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Simonie et Nicolaïsme",
+    "description": ""
+  },
+  {
+    "id": "156",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Incastellamento",
+    "description": ""
+  },
+  {
+    "id": "157",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Lignage",
+    "description": ""
+  },
+  {
+    "id": "158",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Féodalité (Moyen-Âge Central et Bas)",
+    "description": ""
+  },
+  {
+    "id": "159",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Légitimité dynastique",
+    "description": ""
+  },
+  {
+    "id": "160",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Le Sacre et la Sacralité",
+    "description": ""
+  },
+  {
+    "id": "161",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Évolution du Domaine Royal",
+    "description": ""
   }
 ]
-

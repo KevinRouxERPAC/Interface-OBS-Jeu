@@ -39,7 +39,6 @@ Interface OBS Jeu/
 │
 ├── docs/                        # 📚 DOCUMENTATION
 │   ├── DOCUMENTATION.md         # Ce fichier (documentation consolidée)
-│   └── SECURITE_API_KEY.md      # Sécurité et clé API
 │
 ├── api/                         # 🔧 API BACKEND (router Express)
 │   ├── server.js                # Router API (monté sous /api)
@@ -208,8 +207,6 @@ Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lanceme
    PORT=3000
    NODE_ENV=development
    
-   # Authentification (optionnel en dev, requis en prod)
-   API_KEY=votre-clé-secrète-très-longue
    ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5000
    
    # Google Sheets (optionnel)
@@ -221,59 +218,7 @@ Si Git n'est pas installé ou si le dossier n'est pas un dépôt Git, le lanceme
    LOG_LEVEL=info  # error, warn, info, debug
    ```
 
-### Configuration de la Clé API
-
-> 📖 **Documentation complète :** Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour une explication détaillée de l'utilité de la clé API.
-
-#### Pourquoi la clé API est nécessaire en production ?
-
-La clé API protège votre serveur contre les accès non autorisés. **Sans clé API en production**, n'importe qui sur Internet pourrait :
-
-- 🛑 **Arrêter votre serveur** - Interrompre votre stream en cours
-- ⚠️ **Envoyer des commandes malveillantes** - Contrôler votre overlay pendant le stream
-- 🔧 **Modifier l'état de l'overlay** - Désynchroniser ou casser l'affichage
-- 👁️ **Espionner vos commandes** - Voir ce que vous préparez avant l'affichage
-
-**Endpoints protégés par la clé API (sous `/api`) :**
-- `POST /api/shutdown` - Arrêt du serveur
-- `POST /api/command` - Envoi de commandes
-- `GET /api/command` - Lecture des commandes
-- `POST /api/state` - Modification de l'état
-- `GET /api/state` - Lecture de l'état
-
-#### En développement
-La clé API est **optionnelle**. Le serveur accepte toutes les requêtes pour faciliter le développement.
-
-#### En production
-La clé API est **obligatoire**. Définissez dans `.env`:
-```bash
-API_KEY=votre-clé-secrète-très-longue
-NODE_ENV=production
-```
-
-**Générer une clé API sécurisée :**
-```bash
-# Option 1 : Utiliser Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# Option 2 : Utiliser un générateur en ligne
-# https://www.random.org/strings/
-```
-
-#### Utilisation depuis l'overlay/admin
-
-**Pour l'overlay dans OBS :**
-- URL : `http://localhost:3000/overlay?apiKey=VOTRE_CLE_API`
-- La clé peut être passée en paramètre d'URL pour OBS Browser Source
-
-**Pour l'admin :**
-- La clé peut être stockée dans `localStorage` :
-  ```javascript
-  localStorage.setItem('quiz-api-key', 'votre-clé');
-  ```
-- Ou passée en paramètre d'URL : `http://localhost:3000/admin?apiKey=VOTRE_CLE_API`
-
-### Configuration Google Sheets (optionnel)
+### Configuration Google Sheets (base de données)
 
 1. **Dans Google Cloud Console :**
    - Créez un projet
@@ -299,7 +244,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    GOOGLE_SERVICE_ACCOUNT_KEY=<clé privée avec \n échappés>
    ```
 
-Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet** (pas de fallback silencieux). Sans configuration Sheets, l’API utilise `data/questions.json`.
+**Fonctionnement** : à chaque démarrage du serveur, si Google Sheets est configuré, l’app **importe tout** (questions, thèmes, catégories, niveaux, matières) depuis le Sheet vers les fichiers `data/*.json`. Ensuite, toutes les requêtes API lisent **uniquement** ces JSON locaux — plus besoin de connexion internet pendant l’utilisation. Sans Google Sheets configuré, l’app utilise les JSON déjà présents dans `data/`.
 
 ---
 
@@ -330,7 +275,7 @@ Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet*
 
 1. **Créez une Browser Source**
    - URL: `http://localhost:3000/overlay`
-   - En production avec clé API : `http://votre-serveur.com:3000/overlay?apiKey=VOTRE_CLE_API`
+   - En production : `http://votre-serveur.com:3000/overlay`
    - Largeur: 1920
    - Hauteur: 200 (ajustez selon vos besoins)
    - Custom CSS: (optionnel, le fond est déjà transparent)
@@ -353,9 +298,9 @@ Si Google Sheets est configuré, **les questions sont chargées depuis le Sheet*
 - `GET /overlay` - Page d'affichage overlay (lecture seule)
 - `GET /admin` - Interface admin
 
-#### Endpoints protégés (requièrent `X-API-Key`)
+#### Endpoints principaux
 
-Tous les endpoints ci-dessous sont préfixés par `/api` et nécessitent l'en-tête `X-API-Key` en production :
+Tous les endpoints ci-dessous sont préfixés par `/api` :
 
 **Questions**
 - `GET /api/random?levelId=X&categoryId=Y&themeId=Z` - Question aléatoire avec filtres optionnels
@@ -482,12 +427,10 @@ L’API normalise automatiquement ces questions en format “quiz” (propositio
 
 ## Sécurité
 
-> 📖 **Documentation complète :** Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour une explication détaillée de la sécurité.
 
 ### Checklist de sécurité
 
 - [x] CORS restreint à `ALLOWED_ORIGINS`
-- [x] Authentification par clé API (`X-API-Key`)
 - [x] Validation des données entrantes (validators.js)
 - [x] Secrets en variables d'environnement
 - [x] `.gitignore` configuré pour ignorer `.env`
@@ -497,7 +440,6 @@ L’API normalise automatiquement ces questions en format “quiz” (propositio
 ### Checklist avant production
 
 - [ ] Définir `NODE_ENV=production`
-- [ ] Définir `API_KEY` avec une clé forte (voir [`SECURITE_API_KEY.md`](SECURITE_API_KEY.md))
 - [ ] Définir `ALLOWED_ORIGINS` correctement
 - [ ] Définir `LOG_LEVEL=info` (pas debug)
 - [ ] Vérifier que `.env` n'est pas dans git
@@ -518,7 +460,7 @@ npm audit
 node -c server.js
 
 # Tester l'API en local
-curl -H "X-API-Key: $API_KEY" http://localhost:3000/api/health
+curl http://localhost:3000/api/health
 ```
 
 ---
@@ -614,20 +556,17 @@ npm run dev
 ### Erreur : "Clé API invalide"
 
 - Vérifiez que `X-API-Key` est envoyée dans les en-têtes
-- En développement : la clé API est optionnelle
-- En production : vérifiez que `API_KEY` dans `.env` correspond à celle utilisée
-- Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour plus de détails
 
 ### Erreur : "CORS non autorisé"
 
 - Vérifiez `ALLOWED_ORIGINS` dans `.env`
 - Incluez le protocol complet (http:// ou https://)
 
-### Google Sheets ne charge pas
+### Google Sheets ne charge pas au démarrage
 
-- Le serveur retombe automatiquement sur `data/questions.json`
-- Vérifiez les variables d'environnement
-- Consultez les logs du serveur
+- Au démarrage, si le sync échoue, le serveur utilise les JSON déjà présents dans `data/` (s’ils existent)
+- Vérifiez les variables d’environnement dans `api/.env` (GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_KEY)
+- Consultez les logs du serveur au lancement (message « Import Google Sheets → JSON locaux » ou erreur)
 
 ---
 
@@ -637,10 +576,9 @@ npm run dev
 
 #### Architecture
 - ✅ **Serveur unifié à la racine** : `server.js` et `package.json` à la racine du projet
-- ✅ **Déploiement Fly.io** : `fly launch` puis `fly deploy` (voir README), ou `npm install` + `npm start` en local
+- ✅ **Sync Google Sheets → JSON au démarrage** : à chaque lancement, import des données du Sheet vers `data/*.json` ; ensuite l’app lit uniquement en local (plus besoin d’internet)
 - ✅ API montée sous `/api` (health check : `/api/health`, commandes : `/api/command`, etc.)
-- ✅ Fichier `.env` à la racine (plus dans `api/`)
-- ✅ Scripts Windows/Unix et Docker mis à jour pour la racine
+- ✅ Fichier `.env` dans `api/` pour la config (Google Sheets, etc.)
 
 #### Nettoyage
 - ✅ Suppression de `api/package.json` (redondant)
@@ -673,7 +611,6 @@ npm run dev
 
 #### Sécurité
 - ✅ CORS restreint à une whitelist configurable (`ALLOWED_ORIGINS`)
-- ✅ Authentification par clé API (`X-API-Key` en header)
 - ✅ Validation stricte de tous les inputs (validators.js)
 - ✅ Mode développement vs production
 - ✅ `.gitignore` configuré pour éviter les fuites de secrets
@@ -702,7 +639,7 @@ Modifiez les variables CSS dans `overlay/style.css`
 Changez `DEFAULT_DURATION` dans `overlay/script.js`
 
 ### Questions
-Éditez `data/questions.json` ou utilisez Google Sheets
+La base est votre Google Sheet. Au démarrage, les données sont importées dans `data/*.json`. Pour mettre à jour les questions, modifiez le Sheet puis relancez le serveur (ou éditez directement les JSON en `data/`).
 
 ---
 
@@ -728,7 +665,6 @@ Pour toute question ou problème :
 1. Consultez la section [Dépannage](#dépannage)
 2. Vérifiez les logs du serveur (`LOG_LEVEL=debug`)
 3. Consultez la console du navigateur (F12)
-4. Consultez [`docs/SECURITE_API_KEY.md`](SECURITE_API_KEY.md) pour les questions sur la sécurité
 
 ---
 

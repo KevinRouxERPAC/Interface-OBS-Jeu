@@ -2,7 +2,8 @@
  * Configuration centralisée de l'API
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
   // Serveur
@@ -11,13 +12,11 @@ const config = {
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',
 
-  // Authentification
-  apiKey: process.env.API_KEY,
   allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
     .split(',')
     .map(o => o.trim()),
 
-  // Google Sheets (optionnel)
+  // Google Sheets (base de données : importée en JSON locaux à chaque démarrage)
   googleSheets: {
     id: process.env.GOOGLE_SHEETS_ID,
     serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -41,22 +40,8 @@ const config = {
 
 // Validation
 function validate() {
-  if (config.isProduction && !config.apiKey) {
-    console.warn('[config] API_KEY non définie en production : définir fly secrets set API_KEY=... puis redéployer pour sécuriser l’API.');
-  }
-  const origins = (process.env.ALLOWED_ORIGINS || '').trim();
-  if (!origins && config.isProduction) {
-    console.warn('[config] ALLOWED_ORIGINS non défini : définir fly secrets set ALLOWED_ORIGINS=https://votre-app.fly.dev,... pour le CORS.');
-  }
   if (!config.allowedOrigins.length) {
     config.allowedOrigins = ['http://localhost:3000'];
-  }
-  // Sur Fly.io, autoriser l'URL de l'app par défaut si ALLOWED_ORIGINS n'a pas été défini
-  if (config.isProduction && process.env.FLY_APP_NAME) {
-    const flyOrigin = `https://${process.env.FLY_APP_NAME}.fly.dev`;
-    if (!config.allowedOrigins.includes(flyOrigin)) {
-      config.allowedOrigins.push(flyOrigin);
-    }
   }
 }
 
