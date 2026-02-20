@@ -1125,5 +1125,54 @@
     "idLevel": "3",
     "name": "Évolution du Domaine Royal",
     "description": ""
+  },
+  {
+    "id": "162",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Les Principautés Féodales",
+    "description": ""
+  },
+  {
+    "id": "163",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Réforme Grégorienne",
+    "description": ""
+  },
+  {
+    "id": "164",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Justice et Paix du Roi",
+    "description": ""
+  },
+  {
+    "id": "165",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Monarchie Administrative",
+    "description": ""
+  },
+  {
+    "id": "166",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Le Rôle des Croisades",
+    "description": ""
+  },
+  {
+    "id": "167",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Rayonnement du XIIIe Siècle",
+    "description": ""
+  },
+  {
+    "id": "168",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "L'Université",
+    "description": ""
   }
 ]

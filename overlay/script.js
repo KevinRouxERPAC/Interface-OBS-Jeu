@@ -218,7 +218,7 @@
   function updateConnectionStatus(connected) {
     if (!DOM.connectionStatus) return;
     state.lastAdminPing = Date.now();
-    DOM.connectionStatus.style.display = 'flex';
+    DOM.connectionStatus.style.display = 'none'; // masqué sur l'overlay (synchro non affichée)
     DOM.connectionStatus.classList.toggle('connected', connected);
     DOM.connectionStatus.classList.toggle('disconnected', !connected);
     if (DOM.connectionText) {
