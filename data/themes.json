@@ -266,132 +266,6 @@
     "description": ""
   },
   {
-    "id": "39",
-    "idCategory": "4",
-    "idLevel": "2",
-    "name": "La Troisième République",
-    "description": ""
-  },
-  {
-    "id": "40",
-    "idCategory": "4",
-    "idLevel": "2",
-    "name": "Mutations socioculturelles",
-    "description": ""
-  },
-  {
-    "id": "41",
-    "idCategory": "4",
-    "idLevel": "2",
-    "name": "L'empire colonial français",
-    "description": ""
-  },
-  {
-    "id": "42",
-    "idCategory": "4",
-    "idLevel": "2",
-    "name": "La Grande Guerre",
-    "description": ""
-  },
-  {
-    "id": "43",
-    "idCategory": "1",
-    "idLevel": "2",
-    "name": "La Méditerranée antique",
-    "description": ""
-  },
-  {
-    "id": "44",
-    "idCategory": "2",
-    "idLevel": "2",
-    "name": "La Méditerranée médiévale",
-    "description": ""
-  },
-  {
-    "id": "45",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "L'ouverture atlantique",
-    "description": ""
-  },
-  {
-    "id": "46",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "Renaissance et Humanisme",
-    "description": ""
-  },
-  {
-    "id": "47",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "Réformes religieuses",
-    "description": ""
-  },
-  {
-    "id": "48",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "L'affirmation de l'État en France",
-    "description": ""
-  },
-  {
-    "id": "49",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "Le modèle britannique",
-    "description": ""
-  },
-  {
-    "id": "50",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "Les Lumières et les sciences",
-    "description": ""
-  },
-  {
-    "id": "51",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "La société française d'Ancien Régime",
-    "description": ""
-  },
-  {
-    "id": "52",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "La Révolution américaine",
-    "description": ""
-  },
-  {
-    "id": "53",
-    "idCategory": "3",
-    "idLevel": "2",
-    "name": "La monarchie absolue de Louis XIV",
-    "description": ""
-  },
-  {
-    "id": "54",
-    "idCategory": "1",
-    "idLevel": "2",
-    "name": "La Méditerranée antique",
-    "description": ""
-  },
-  {
-    "id": "55",
-    "idCategory": "4",
-    "idLevel": "2",
-    "name": "La construction européenne",
-    "description": ""
-  },
-  {
-    "id": "56",
-    "idCategory": "4",
-    "idLevel": "3",
-    "name": "Transformations de la société française",
-    "description": ""
-  },
-  {
     "id": "57",
     "idCategory": "4",
     "idLevel": "3",
@@ -1173,6 +1047,104 @@
     "idCategory": "2",
     "idLevel": "3",
     "name": "L'Université",
+    "description": ""
+  },
+  {
+    "id": "169",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Madrasa",
+    "description": ""
+  },
+  {
+    "id": "170",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Yeshiva",
+    "description": ""
+  },
+  {
+    "id": "171",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Paideia",
+    "description": ""
+  },
+  {
+    "id": "172",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Cour princière",
+    "description": ""
+  },
+  {
+    "id": "173",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Bibliothèque institutionnelle",
+    "description": ""
+  },
+  {
+    "id": "174",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Les Arts libéraux",
+    "description": ""
+  },
+  {
+    "id": "175",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "La Scolastique",
+    "description": ""
+  },
+  {
+    "id": "176",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Le Manuscrit médiéval",
+    "description": ""
+  },
+  {
+    "id": "177",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Le Waqf",
+    "description": ""
+  },
+  {
+    "id": "178",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Vecteurs culturels",
+    "description": ""
+  },
+  {
+    "id": "179",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Héritage antique",
+    "description": ""
+  },
+  {
+    "id": "180",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Culture religieuse",
+    "description": ""
+  },
+  {
+    "id": "181",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Culture savante et universitaire",
+    "description": ""
+  },
+  {
+    "id": "182",
+    "idCategory": "2",
+    "idLevel": "3",
+    "name": "Cultures laïques et nobiliaires",
     "description": ""
   }
 ]
