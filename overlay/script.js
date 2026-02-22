@@ -74,6 +74,7 @@
   let state = {
     screen: 'WAITING', // WAITING, SELECTION, THEME, QUESTION
     flowStep: 0, // 0=attente, 1=matières, 2=niveaux, 3=catégories, 4=thème, 5=question (évite retours en arrière)
+    overlayMuted: false, // true = son coupé par l'admin
     selectedMatiere: null,
     selectedLevel: null,
     selectedCategory: null,
@@ -85,7 +86,9 @@
     lastAdminPing: Date.now(),
     timerId: null,
     timerAudio: null,
-    selectAudio: null
+    selectAudio: null,
+    sondageActive: false,
+    sondageAudio: null
   };
 
   // ========================
@@ -298,6 +301,41 @@
         highlightAnswer(cmd.index);
         break;
         
+      case 'MUTE_OVERLAY':
+        state.overlayMuted = cmd.muted === true;
+        // Ne pas arrêter le timer ni la musique : on met seulement le volume à 0 / le restaure
+        if (state.timerAudio) {
+          state.timerAudio.volume = state.overlayMuted ? 0 : 0.5;
+        }
+        if (state.selectAudio) {
+          state.selectAudio.volume = state.overlayMuted ? 0 : 0.8;
+        }
+        if (state.sondageAudio) {
+          state.sondageAudio.volume = state.overlayMuted ? 0 : 0.6;
+        }
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] Son overlay:', state.overlayMuted ? 'coupé' : 'réactivé');
+        }
+        break;
+        
+      case 'START_POLL':
+        stopSelectSound();
+        playSondageSound();
+        state.sondageActive = true;
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] Sondage lancé — musique de sondage');
+        }
+        break;
+        
+      case 'END_POLL':
+        stopSondageSound();
+        playSound('select');
+        state.sondageActive = false;
+        if (CONFIG.isDevelopment) {
+          console.log('[OVERLAY] Sondage terminé — musique de sélection reprise');
+        }
+        break;
+        
       default:
         if (CONFIG.isDevelopment) {
           console.warn('[OVERLAY] Commande inconnue:', cmd.type);
@@ -354,6 +392,8 @@
     DOM.questionScreen.style.display = 'none';
     clearTimer();
     stopSelectSound();
+    stopSondageSound();
+    state.sondageActive = false;
     if (CONFIG.isDevelopment) {
       console.log('[OVERLAY] Écran d\'attente affiché');
     }
@@ -614,8 +654,10 @@
     
     clearTimer();
     
-    // Arrête le son de sélection s'il est en cours
+    // Arrête le son de sélection et de sondage s'ils sont en cours
     stopSelectSound();
+    stopSondageSound();
+    state.sondageActive = false;
     
     const correctIndex = Number(state.currentQuestion.bonneReponse);
     const answers = DOM.answers.querySelectorAll('.answer');
@@ -656,6 +698,7 @@
    * Joue un son audio (sélection, correct, wrong, etc.)
    */
   function playSound(soundType) {
+    if (state.overlayMuted) return;
     try {
       let soundFile;
       let volume = 0.8;
@@ -714,9 +757,47 @@
   }
 
   /**
+   * Joue la musique de sondage (sondage.mp3 en boucle).
+   * Fichier à placer dans overlay/audio/sondage.mp3
+   */
+  function playSondageSound() {
+    if (state.overlayMuted) return;
+    stopSondageSound();
+    try {
+      const audioUrl = !CONFIG.isDevelopment
+        ? `${window.location.origin}/overlay/audio/sondage.mp3`
+        : `audio/sondage.mp3`;
+      state.sondageAudio = new Audio(audioUrl);
+      state.sondageAudio.volume = 0.6;
+      state.sondageAudio.loop = true;
+      state.sondageAudio.play().catch(err => {
+        if (CONFIG.isDevelopment) {
+          console.warn('[OVERLAY] Musique sondage échouée (fichier absent?):', err);
+        }
+      });
+    } catch (err) {
+      if (CONFIG.isDevelopment) {
+        console.warn('[OVERLAY] Erreur création audio sondage:', err);
+      }
+    }
+  }
+
+  /**
+   * Arrête la musique de sondage
+   */
+  function stopSondageSound() {
+    if (state.sondageAudio) {
+      state.sondageAudio.pause();
+      state.sondageAudio.currentTime = 0;
+      state.sondageAudio = null;
+    }
+  }
+
+  /**
    * Joue la musique du timer (1min30secondes.mp3 — une lecture, durée = timer)
    */
   function playTimerSound() {
+    if (state.overlayMuted) return;
     try {
       const audioUrl = !CONFIG.isDevelopment
         ? `${window.location.origin}/overlay/audio/1minute30secondes.mp3`

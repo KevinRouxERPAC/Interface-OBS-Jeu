@@ -119,6 +119,7 @@ body {
 }
 
 .admin-buttons-persistent .btn-primary,
+.admin-buttons-persistent .btn-secondary,
 .admin-buttons-persistent .btn-danger {
   width: 100%;
 }
@@ -283,6 +284,19 @@ button:disabled {
   background: rgba(255, 51, 102, 0.3);
   border-color: var(--color-error);
   box-shadow: var(--glow-error), var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: var(--border-width) solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
