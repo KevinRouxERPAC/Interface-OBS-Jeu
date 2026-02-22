@@ -62,6 +62,7 @@
     btnNewQuestion: document.getElementById('btn-new-question'),
     btnRestartSelection: document.getElementById('btn-restart-selection'),
     btnRestartSelectionAlways: document.getElementById('btn-restart-selection-always'),
+    btnMuteOverlay: document.getElementById('btn-mute-overlay'),
 
     // Options
     matiereScopeSelect: document.getElementById('matiere-scope'),
@@ -92,7 +93,8 @@
     adminBlockPropositions: document.getElementById('admin-block-propositions'),
     adminExplication: document.getElementById('admin-explication'),
     adminBlockExplication: document.getElementById('admin-block-explication'),
-    eventLog: document.getElementById('event-log')
+    eventLog: document.getElementById('event-log'),
+    btnStartPoll: null // créé dynamiquement sous les boutons A/B/C/D
   };
 
   function normalizeText(s) {
@@ -136,6 +138,7 @@
   // ========================
   let state = {
     screen: 'WAITING', // WAITING, MATIERE_SELECTION, LEVEL_SELECTION, CATEGORY_SELECTION, THEME_SELECTION, QUESTION_WAITING, QUESTION_ACTIVE
+    overlayMuted: false, // son de l'overlay coupé ou non
     selectedMatiere: null,
     selectedLevel: null,
     selectedCategory: null,
@@ -149,7 +152,8 @@
     // Enchaînement sans répétition : pool de questions du thème (mélangé), index courant
     themeQuestionPool: [],
     themeQuestionIndex: 0,
-    themeQuestionPoolThemeId: null
+    themeQuestionPoolThemeId: null,
+    sondageActive: false // true = sondage en cours, cliquer sur une réponse le termine
   };
 
   // ========================
@@ -370,6 +374,7 @@
         if (answerBtns) {
           answerBtns.style.display = 'grid';
         }
+        updatePollButton();
         break;
     }
     
@@ -760,6 +765,7 @@
     state.selectedTheme = null;
     state.currentQuestion = null;
     state.answerRevealed = false;
+    state.sondageActive = false;
     state.themeQuestionPool = [];
     state.themeQuestionIndex = 0;
     state.themeQuestionPoolThemeId = null;
@@ -989,6 +995,7 @@
     
     state.screen = 'QUESTION_ACTIVE';
     state.answerRevealed = false;
+    state.sondageActive = false;
     
     // Envoie la question à l'overlay
     sendCommand({
@@ -1005,10 +1012,15 @@
 
   /**
    * Sélectionne une réponse (depuis les boutons A/B/C/D)
+   * Si un sondage est en cours, un clic sur une réponse met fin au sondage (réponse choisie par les participants).
    */
   function selectAnswerButton(index) {
     if (!state.currentQuestion) {
       alert('Aucune question active');
+      return;
+    }
+    if (state.sondageActive) {
+      endPoll(index);
       return;
     }
     
@@ -1016,12 +1028,61 @@
     logEvent(`🔘 Réponse sélectionnée: ${keyLabels[index]}`);
     state.currentQuestion.selectedByAdmin = index;
     updateCurrentQuestion(state.currentQuestion);
+    updatePollButton();
     
     // Envoie la sélection à l'overlay
     sendCommand({
       type: 'HIGHLIGHT_ANSWER',
       index: index
     });
+  }
+
+  /**
+   * Met à jour l'état du bouton "Lancer un sondage" (actif seulement si une réponse a été sélectionnée)
+   */
+  function updatePollButton() {
+    if (!DOM.btnStartPoll) return;
+    const hasSelection = state.currentQuestion && state.currentQuestion.selectedByAdmin != null;
+    if (state.sondageActive) {
+      DOM.btnStartPoll.textContent = '📊 Sondage en cours — cliquez sur la réponse choisie pour terminer';
+      DOM.btnStartPoll.disabled = true;
+      DOM.btnStartPoll.title = 'Cliquez sur A, B, C ou D pour terminer le sondage';
+    } else {
+      DOM.btnStartPoll.textContent = '📊 Lancer un sondage';
+      DOM.btnStartPoll.disabled = !hasSelection;
+      DOM.btnStartPoll.title = hasSelection ? 'Arrête la musique de sélection et lance la musique de sondage' : 'Sélectionnez d\'abord une réponse (A, B, C ou D)';
+    }
+  }
+
+  /**
+   * Lance un sondage : musique de sélection s'arrête, musique de sondage démarre côté overlay.
+   */
+  function startPoll() {
+    if (!state.currentQuestion || state.currentQuestion.selectedByAdmin == null) {
+      logEvent('⚠️ Sélectionnez d\'abord une réponse (A, B, C ou D) pour lancer un sondage');
+      return;
+    }
+    if (state.sondageActive) return;
+    state.sondageActive = true;
+    updatePollButton();
+    sendCommand({ type: 'START_POLL' });
+    logEvent('📊 Sondage lancé — cliquez sur la réponse choisie pour terminer');
+  }
+
+  /**
+   * Termine le sondage avec la réponse choisie par les participants.
+   * Musique de sondage s'arrête, musique de sélection reprend côté overlay.
+   */
+  function endPoll(index) {
+    if (!state.sondageActive) return;
+    state.sondageActive = false;
+    const keyLabels = ['A', 'B', 'C', 'D'];
+    sendCommand({ type: 'END_POLL', index });
+    sendCommand({ type: 'HIGHLIGHT_ANSWER', index });
+    state.currentQuestion.selectedByAdmin = index;
+    updateCurrentQuestion(state.currentQuestion);
+    updatePollButton();
+    logEvent(`📊 Sondage terminé — réponse ${keyLabels[index]}`);
   }
 
   /**
@@ -1059,6 +1120,19 @@
     await startSelection();
   }
 
+  /**
+   * Bascule le son de l'overlay (couper / réactiver)
+   */
+  function toggleOverlayMute() {
+    state.overlayMuted = !state.overlayMuted;
+    sendCommand({ type: 'MUTE_OVERLAY', muted: state.overlayMuted });
+    if (DOM.btnMuteOverlay) {
+      DOM.btnMuteOverlay.textContent = state.overlayMuted ? '🔊 Réactiver le son overlay' : '🔇 Couper le son overlay';
+      DOM.btnMuteOverlay.title = state.overlayMuted ? 'Réactiver le son de l\'overlay' : 'Couper le son de l\'overlay';
+    }
+    logEvent(state.overlayMuted ? '🔇 Son overlay coupé' : '🔊 Son overlay réactivé');
+  }
+
   // ========================
   // EVENT LISTENERS
   // ========================
@@ -1072,6 +1146,9 @@
     DOM.btnRestartSelection.addEventListener('click', restartSelection);
     if (DOM.btnRestartSelectionAlways) {
       DOM.btnRestartSelectionAlways.addEventListener('click', restartSelection);
+    }
+    if (DOM.btnMuteOverlay) {
+      DOM.btnMuteOverlay.addEventListener('click', toggleOverlayMute);
     }
     
     // Ajoute les boutons A/B/C/D en section active pour sélectionner la réponse
@@ -1097,6 +1174,20 @@
     });
     
     DOM.questionActiveSection.appendChild(buttonContainer);
+    
+    // Bouton "Lancer un sondage" (sous les réponses, actif seulement si une réponse est sélectionnée)
+    const btnStartPoll = document.createElement('button');
+    btnStartPoll.id = 'btn-start-poll';
+    btnStartPoll.type = 'button';
+    btnStartPoll.className = 'btn-secondary';
+    btnStartPoll.textContent = '📊 Lancer un sondage';
+    btnStartPoll.disabled = true;
+    btnStartPoll.title = 'Sélectionnez d\'abord une réponse (A, B, C ou D)';
+    btnStartPoll.style.gridColumn = '1 / -1';
+    btnStartPoll.style.marginTop = 'var(--spacing-md)';
+    btnStartPoll.addEventListener('click', startPoll);
+    DOM.btnStartPoll = btnStartPoll;
+    DOM.questionActiveSection.appendChild(btnStartPoll);
   }
 
   // ========================
