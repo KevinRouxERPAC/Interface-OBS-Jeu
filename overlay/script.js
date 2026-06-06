@@ -60,6 +60,8 @@
     infoLevel: document.getElementById('info-level'),
     infoCategory: document.getElementById('info-category'),
     infoTheme: document.getElementById('info-theme'),
+    infoQuestionCount: document.getElementById('info-question-count'),
+    infoQuestionNumber: document.getElementById('info-question-number'),
     
     // Timer
     timerFill: document.getElementById('timer-fill'),
@@ -285,7 +287,7 @@
         break;
         
       case 'LOAD_QUESTION':
-        loadQuestion(cmd.question, cmd.matiere, cmd.level, cmd.category, cmd.theme);
+        loadQuestion(cmd.question, cmd.matiere, cmd.level, cmd.category, cmd.theme, cmd.questionNumber, cmd.questionTotal);
         break;
         
       case 'REVEAL_ANSWER':
@@ -503,7 +505,7 @@
   /**
    * Charge et affiche une question
    */
-  function loadQuestion(question, matiere, level, category, theme) {
+  function loadQuestion(question, matiere, level, category, theme, questionNumber, questionTotal) {
     state.screen = 'QUESTION';
     state.flowStep = 5;
     state.currentQuestion = question;
@@ -525,6 +527,15 @@
     DOM.infoLevel.textContent = level?.name || '-';
     DOM.infoCategory.textContent = category?.name || '-';
     DOM.infoTheme.textContent = theme?.name || '-';
+    // Numéro de la question sur le total du thème
+    if (DOM.infoQuestionCount && DOM.infoQuestionNumber) {
+      if (questionNumber != null && questionTotal != null) {
+        DOM.infoQuestionNumber.textContent = `${questionNumber} / ${questionTotal}`;
+        DOM.infoQuestionCount.style.display = '';
+      } else {
+        DOM.infoQuestionCount.style.display = 'none';
+      }
+    }
     
     // Affiche la question
     DOM.question.textContent = question.question || 'Question vide';

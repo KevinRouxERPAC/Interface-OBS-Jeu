@@ -50,7 +50,16 @@ Une fois le sync fait, vous pouvez couper internet : l’app lit uniquement les 
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL` : l’email du compte de service
    - `GOOGLE_SERVICE_ACCOUNT_KEY` : la clé privée (coller avec `\n` pour les retours à la ligne)
 
-Optionnel : `ALLOWED_ORIGINS`, `PORT`. Voir `.env.example`.
+Optionnel : `ALLOWED_ORIGINS`, `PORT`, `API_KEY`. Voir `.env.example`.
+
+### Sécurité (déploiement public)
+
+Les endpoints de **contrôle** (`POST /api/command`, `/api/state`, `/api/shutdown`) peuvent être protégés par une clé API. Définissez `API_KEY` dans `api/.env` : la clé devient alors **obligatoire** pour piloter l'overlay et arrêter le serveur. Laissée vide (usage local), l'authentification est désactivée.
+
+- **Admin** : ouvrez le pupitre avec la clé en paramètre une fois — `http://votre-hote/admin?apiKey=VOTRE_CLE`. Elle est mémorisée par le navigateur (localStorage) pour les rechargements suivants.
+- **Overlay (OBS)** : aucune clé nécessaire — l'overlay ne fait que de la lecture (flux SSE), laissée publique.
+
+⚠️ Ne committez jamais `api/.env` (il est ignoré par git). En cas de fuite de la clé du compte de service Google, régénérez-la dans Google Cloud Console.
 
 Sans Google Sheets configuré, l’app démarre quand même et utilise les JSON déjà présents dans `data/` (utile si vous avez déjà fait un sync une fois).
 
