@@ -84,8 +84,8 @@
   --bg-gradient-gold: linear-gradient(135deg, var(--color-primary-gold), #ffaa00);
   --bg-gradient-success: linear-gradient(135deg, var(--color-success), #00cc77);
   
-  /* Backdrop blur */
-  --backdrop-blur: blur(20px) saturate(180%);
+  /* Backdrop blur — allégé pour la source navigateur OBS (CEF/GPU) */
+  --backdrop-blur: blur(10px) saturate(140%);
 }
 
 /* ============================================
@@ -490,5 +490,21 @@ body {
   .btn {
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: 12px;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITÉ / PERF : mouvement réduit
+   Coupe les animations infinies (glow-pulse, pulse...) pour les utilisateurs
+   sensibles et pour soulager le GPU d'OBS.
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
