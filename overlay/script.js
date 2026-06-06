@@ -725,10 +725,6 @@
         case 'wrong':
           soundFile = 'wrong.wav';
           break;
-        case 'timer':
-          soundFile = '30secondes.wav';
-          volume = 0.5;
-          break;
         default:
           return;
       }

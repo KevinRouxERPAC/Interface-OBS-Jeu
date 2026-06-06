@@ -61,12 +61,16 @@ function requireApiKey(req, res, next) {
   logger.warn('AUTH', `Accès refusé à ${req.method} ${req.path} (clé API manquante ou invalide)`);
   return res.status(401).json({ error: 'Clé API manquante ou invalide' });
 }
-const questionsPath = path.join(__dirname, '..', 'data', 'questions.json');
 
 let lastCommand = { id: 0, cmd: null, timestamp: 0 };
 let overlayState = { question: null, timer: null, selectedIndex: null, timestamp: 0 };
-const sseClients = []; // { res, key } pour limiter par clé
-const MAX_SSE_PER_KEY = 3; // max de connexions SSE simultanées par clé API
+const sseClients = []; // connexions SSE ouvertes (overlay)
+const MAX_SSE_CLIENTS = 20; // plafond global de connexions SSE simultanées (anti-flood)
+
+// Cache mémoire des données locales : évite de relire/reparser les JSON (dont
+// questions.json ~2,4 Mo) à chaque requête. Invalidé après chaque sync Sheets.
+const dataCache = new Map(); // filename -> JSON parsé
+let questionsCache = null;   // tableau de questions normalisées
 
 // Configuration CORS sécurisée
 const corsOptions = {
@@ -155,8 +159,8 @@ router.post('/shutdown', requireApiKey, (req, res) => {
 
 // Command bus
 router.post('/command', requireApiKey, (req, res) => {
-  if (!req.body || typeof req.body !== 'object') {
-    return res.status(400).json({ error: 'Commande invalide' });
+  if (!validateCommand(req.body)) {
+    return res.status(400).json({ error: 'Commande invalide (champ "type" requis)' });
   }
   lastCommand = { id: lastCommand.id + 1, cmd: req.body, timestamp: Date.now() };
   res.json({ ok: true, id: lastCommand.id });
@@ -180,6 +184,10 @@ const streamOpenLimiter = rateLimit({
 // Flux SSE : l’overlay reçoit les commandes en push (pas de polling)
 // Clé API en query car EventSource ne permet pas d’en-têtes personnalisés
 router.get('/command/stream', streamOpenLimiter, (req, res) => {
+  if (sseClients.length >= MAX_SSE_CLIENTS) {
+    logger.warn('SSE', `Connexion refusée: plafond de ${MAX_SSE_CLIENTS} flux atteint`);
+    return res.status(503).json({ error: 'Trop de connexions au flux, réessayez plus tard.' });
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -201,7 +209,7 @@ router.get('/command', (_req, res) => {
 
 // État de l'overlay
 router.post('/state', requireApiKey, (req, res) => {
-  if (!req.body) {
+  if (!validateOverlayState(req.body)) {
     return res.status(400).json({ error: 'État invalide' });
   }
   overlayState = { ...req.body, timestamp: Date.now() };
@@ -215,6 +223,32 @@ router.get('/state', (_req, res) => {
 
 let sheetsClient = null;
 const dataDir = path.join(__dirname, '..', 'data');
+
+/**
+ * Lit un fichier JSON du dossier data/ avec mise en cache mémoire.
+ * Lève une erreur si le fichier est absent ou invalide (à gérer par l'appelant).
+ */
+function readData(filename) {
+  if (dataCache.has(filename)) return dataCache.get(filename);
+  const parsed = JSON.parse(fs.readFileSync(path.join(dataDir, filename), 'utf-8'));
+  dataCache.set(filename, parsed);
+  return parsed;
+}
+
+/** Variante tolérante : renvoie `fallback` au lieu de lever en cas d'erreur. */
+function safeReadData(filename, fallback) {
+  try {
+    return readData(filename);
+  } catch (_e) {
+    return fallback;
+  }
+}
+
+/** Vide les caches (appelé après un nouvel import depuis Google Sheets). */
+function clearDataCaches() {
+  dataCache.clear();
+  questionsCache = null;
+}
 
 /**
  * Au démarrage : importe tout depuis Google Sheets vers les JSON locaux.
@@ -327,6 +361,9 @@ async function syncSheetsToLocal() {
   fs.writeFileSync(path.join(dataDir, 'matieres.json'), JSON.stringify(matieresArr, null, 2), 'utf-8');
   fs.writeFileSync(path.join(dataDir, 'questions.json'), JSON.stringify(questionsMapped, null, 2), 'utf-8');
 
+  // Les fichiers locaux ont changé : on vide les caches pour servir les nouvelles données.
+  clearDataCaches();
+
   logger.info('SYNC', `Import terminé: ${questionsMapped.length} questions, ${themesArr.length} thèmes, ${categoriesArr.length} catégories, ${levelsArr.length} niveaux, ${matieresArr.length} matières.`);
 }
 
@@ -337,26 +374,14 @@ async function init() {
 }
 
 function loadQuestions() {
+  // Résultat mis en cache : recalculé uniquement après un sync (clearDataCaches).
+  if (questionsCache) return questionsCache;
   try {
     // Charger les tables locales (pour normaliser / joindre les IDs)
-    const levelsPath = path.join(__dirname, '..', 'data', 'levels.json');
-    const matieresPath = path.join(__dirname, '..', 'data', 'matieres.json');
-    const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
-    const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
-
-    const safeReadJson = (p, fallback) => {
-      try {
-        if (!fs.existsSync(p)) return fallback;
-        return JSON.parse(fs.readFileSync(p, 'utf-8'));
-      } catch (_e) {
-        return fallback;
-      }
-    };
-
-    const levels = safeReadJson(levelsPath, []);
-    const matieres = safeReadJson(matieresPath, []);
-    const categories = safeReadJson(categoriesPath, []);
-    const themes = safeReadJson(themesPath, []);
+    const levels = safeReadData('levels.json', []);
+    const matieres = safeReadData('matieres.json', []);
+    const categories = safeReadData('categories.json', []);
+    const themes = safeReadData('themes.json', []);
 
     // On log, mais on ne bloque pas si les validateurs sont trop permissifs
     if (!validateLevels(levels)) {
@@ -377,8 +402,7 @@ function loadQuestions() {
     const categoryById = Object.fromEntries((categories || []).map(c => [String(c.id), c]));
     const themeById = Object.fromEntries((themes || []).map(t => [String(t.id), t]));
 
-    const raw = fs.readFileSync(questionsPath, 'utf-8');
-    const questionsRaw = JSON.parse(raw);
+    const questionsRaw = readData('questions.json');
     if (!Array.isArray(questionsRaw)) {
       throw new Error('Format invalide: questions.json doit être un tableau');
     }
@@ -457,7 +481,8 @@ function loadQuestions() {
         return isValid;
       });
 
-    return validQuestions;
+    questionsCache = validQuestions;
+    return questionsCache;
   } catch (err) {
     logger.error('DATA', `Erreur chargement questions.json: ${err.message}`);
     return [];
@@ -485,9 +510,7 @@ function buildSheetsClient() {
 
 router.get('/matieres', (_req, res) => {
   try {
-    const matieresPath = path.join(__dirname, '..', 'data', 'matieres.json');
-    const matieresJSON = fs.readFileSync(matieresPath, 'utf-8');
-    const matieres = JSON.parse(matieresJSON);
+    const matieres = readData('matieres.json');
     if (!validateMatieres(matieres)) {
       return res.status(500).json({ error: 'Format de données invalide' });
     }
@@ -500,9 +523,7 @@ router.get('/matieres', (_req, res) => {
 
 router.get('/levels', (_req, res) => {
   try {
-    const levelsPath = path.join(__dirname, '..', 'data', 'levels.json');
-    const levelsJSON = fs.readFileSync(levelsPath, 'utf-8');
-    const levels = JSON.parse(levelsJSON);
+    const levels = readData('levels.json');
     if (!validateLevels(levels)) {
       return res.status(500).json({ error: 'Format de données invalide' });
     }
@@ -523,9 +544,7 @@ router.get('/categories', (req, res) => {
     if (levelId && !validateId(String(levelId))) {
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
-    const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
-    const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
-    let categories = JSON.parse(categoriesJSON);
+    let categories = readData('categories.json');
     if (!validateCategories(categories)) {
       return res.status(500).json({ error: 'Format de données invalide' });
     }
@@ -533,8 +552,7 @@ router.get('/categories', (req, res) => {
       categories = categories.filter(c => String(c.idMatiere) === String(matiereId));
     }
     if (levelId) {
-      const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
-      const themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
+      const themes = readData('themes.json');
       const allowedCategoryIds = new Set(
         (themes || [])
           .filter(t => String(t.idLevel ?? '') === String(levelId))
@@ -560,8 +578,7 @@ router.get('/themes', (req, res) => {
     if (levelId && !validateId(String(levelId))) {
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
-    const themesPath = path.join(__dirname, '..', 'data', 'themes.json');
-    let themes = JSON.parse(fs.readFileSync(themesPath, 'utf-8'));
+    let themes = readData('themes.json');
     if (!validateThemes(themes)) {
       return res.status(500).json({ error: 'Format de données invalide' });
     }
@@ -598,9 +615,7 @@ router.get('/random', (req, res) => {
     let questions = loadQuestions();
     // Filtrer selon les critères
     if (matiereId) {
-      const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
-      const categoriesJSON = fs.readFileSync(categoriesPath, 'utf-8');
-      const categories = JSON.parse(categoriesJSON);
+      const categories = readData('categories.json');
       const categoryIdsForMatiere = categories
         .filter(c => String(c.idMatiere) === String(matiereId))
         .map(c => String(c.id));
@@ -659,8 +674,7 @@ router.get('/questions', (req, res) => {
     }
     let questions = loadQuestions();
     if (matiereId) {
-      const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
-      const categories = JSON.parse(fs.readFileSync(categoriesPath, 'utf-8'));
+      const categories = readData('categories.json');
       const categoryIdsForMatiere = categories
         .filter(c => String(c.idMatiere) === String(matiereId))
         .map(c => String(c.id));
