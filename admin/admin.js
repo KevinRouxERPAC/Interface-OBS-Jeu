@@ -17,9 +17,19 @@
     ? (apiBaseFromUrl.replace(/\/$/, '') + '/api')
     : defaultApiUrl;
 
+  // Clé API (production) : fournie via ?apiKey= ou ?key=, puis mémorisée pour les rechargements.
+  const API_KEY_STORAGE = 'quiz-api-key';
+  const apiKeyFromUrl = urlParams.get('apiKey') || urlParams.get('key');
+  if (apiKeyFromUrl) {
+    try { localStorage.setItem(API_KEY_STORAGE, apiKeyFromUrl); } catch (_) {}
+  }
+  let apiKey = '';
+  try { apiKey = apiKeyFromUrl || localStorage.getItem(API_KEY_STORAGE) || ''; } catch (_) { apiKey = apiKeyFromUrl || ''; }
+
   const CONFIG = {
     channelName: 'quiz-control',
     apiUrl,
+    apiKey,
     selectionDisplayDelay: 3000, // ms - délai d'affichage des sélections
     errorRetryDelay: 2000, // ms - délai avant retry en cas d'erreur réseau
     maxRetries: 3, // nombre max de tentatives de reconnexion
@@ -247,6 +257,9 @@
    */
   function fetchWithApiKey(url, options = {}) {
     const headers = { ...options.headers };
+    if (CONFIG.apiKey) {
+      headers['x-api-key'] = CONFIG.apiKey;
+    }
     return fetch(url, { ...options, headers });
   }
 
@@ -368,7 +381,9 @@
         const correctAnswer = keyLabelsUI[correctIdx] || '?';
         DOM.displayCorrectAnswer.textContent = `${correctAnswer}`;
         DOM.statusText.textContent = 'État: QUESTION EN COURS';
-        updateCurrentState('QUESTION EN COURS', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '');
+        const qNum = state.themeQuestionIndex;
+        const qTotal = state.themeQuestionPool.length;
+        updateCurrentState('QUESTION EN COURS', state.selectedMatiere?.name, state.selectedLevel?.name, state.selectedCategory?.name, state.selectedTheme?.name, state.selectedTheme?.description || '', qNum, qTotal);
         updateCurrentQuestion(state.currentQuestion);
         const answerBtns = document.getElementById('answer-selection-buttons');
         if (answerBtns) {
@@ -390,7 +405,7 @@
   /**
    * Met à jour le bloc Infos générales (tags + description du thème)
    */
-  function updateCurrentState(status, matiere, level, category, theme, themeDescription) {
+  function updateCurrentState(status, matiere, level, category, theme, themeDescription, questionNumber, questionTotal) {
     const tags = DOM.adminInfoTags;
     const desc = DOM.adminThemeDesc;
     if (!tags || !desc) return;
@@ -402,6 +417,9 @@
       { label: 'Catégorie', value: category },
       { label: 'Thème', value: theme }
     ];
+    if (questionNumber != null && questionTotal != null) {
+      items.push({ label: 'Question', value: `${questionNumber} / ${questionTotal}` });
+    }
     tags.innerHTML = items.map(({ label, value }) =>
       `<span class="admin-tag">${label}: <strong>${value || '-'}</strong></span>`
     ).join('');
@@ -997,6 +1015,10 @@
     state.answerRevealed = false;
     state.sondageActive = false;
     
+    // Numéro de la question sur le total du thème (themeQuestionIndex déjà incrémenté après getNextQuestionForTheme)
+    const questionNumber = state.themeQuestionIndex;
+    const questionTotal = state.themeQuestionPool.length;
+
     // Envoie la question à l'overlay
     sendCommand({
       type: 'LOAD_QUESTION',
@@ -1004,7 +1026,9 @@
       matiere: state.selectedMatiere,
       level: state.selectedLevel,
       category: state.selectedCategory,
-      theme: state.selectedTheme
+      theme: state.selectedTheme,
+      questionNumber,
+      questionTotal
     });
     
     updateUI();

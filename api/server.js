@@ -27,17 +27,6 @@ const { google } = require('googleapis');
 
 const router = express.Router();
 const logger = new Logger(config.logLevel);
-// #region agent log
-const DEBUG_LOG_PATH = path.join(__dirname, '..', '.cursor', 'debug.log');
-function agentLog(payload) {
-  try {
-    const dir = path.dirname(DEBUG_LOG_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const line = JSON.stringify({ ...payload, timestamp: Date.now() }) + '\n';
-    fs.appendFileSync(DEBUG_LOG_PATH, line);
-  } catch (_) {}
-}
-// #endregion
 
 // En-têtes de sécurité (aucune requête en plus)
 router.use((_req, res, next) => {
@@ -50,6 +39,27 @@ router.use((_req, res, next) => {
 let httpServer = null;
 function setServer(s) {
   httpServer = s;
+}
+
+// Authentification par clé API pour les endpoints de contrôle.
+// La clé est acceptée via l'en-tête `x-api-key` ou le paramètre `?apiKey=`
+// (EventSource/OBS ne permet pas d'en-têtes personnalisés).
+// Si aucune clé n'est configurée : accès libre (dev/local), avec avertissement en production.
+let warnedNoApiKey = false;
+function requireApiKey(req, res, next) {
+  if (!config.apiKey) {
+    if (config.isProduction && !warnedNoApiKey) {
+      logger.warn('AUTH', 'API_KEY non configurée en production — les endpoints de contrôle ne sont PAS protégés.');
+      warnedNoApiKey = true;
+    }
+    return next();
+  }
+  const provided = req.get('x-api-key') || req.query.apiKey || req.query.key;
+  if (provided && provided === config.apiKey) {
+    return next();
+  }
+  logger.warn('AUTH', `Accès refusé à ${req.method} ${req.path} (clé API manquante ou invalide)`);
+  return res.status(401).json({ error: 'Clé API manquante ou invalide' });
 }
 const questionsPath = path.join(__dirname, '..', 'data', 'questions.json');
 
@@ -120,12 +130,13 @@ router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    sheetsConfigured: Boolean(sheetId && saEmail && saKey)
+    sheetsConfigured: Boolean(sheetId && saEmail && saKey),
+    apiKeyRequired: Boolean(config.apiKey)
   });
 });
 
 // Arrêt du serveur (ferme le serveur HTTP racine si fourni)
-router.post('/shutdown', (req, res) => {
+router.post('/shutdown', requireApiKey, (req, res) => {
   logger.info('SERVER', 'Demande d\'arrêt reçue depuis l\'admin');
   res.json({ ok: true, message: 'Arrêt du serveur en cours...' });
 
@@ -143,7 +154,7 @@ router.post('/shutdown', (req, res) => {
 });
 
 // Command bus
-router.post('/command', (req, res) => {
+router.post('/command', requireApiKey, (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({ error: 'Commande invalide' });
   }
@@ -189,7 +200,7 @@ router.get('/command', (_req, res) => {
 });
 
 // État de l'overlay
-router.post('/state', (req, res) => {
+router.post('/state', requireApiKey, (req, res) => {
   if (!req.body) {
     return res.status(400).json({ error: 'État invalide' });
   }
@@ -570,9 +581,6 @@ router.get('/themes', (req, res) => {
 router.get('/random', (req, res) => {
   try {
     const { matiereId, levelId, categoryId, themeId } = req.query;
-    // #region agent log
-    agentLog({ hypothesisId: 'H1', location: 'api/server.js:random:entry', message: 'GET /random', data: { matiereId, levelId, categoryId, themeId } });
-    // #endregion
     // Valider les IDs si fournis
     if (matiereId && !validateId(String(matiereId))) {
       return res.status(400).json({ error: 'ID de matière invalide' });
@@ -588,9 +596,6 @@ router.get('/random', (req, res) => {
     }
     
     let questions = loadQuestions();
-    // #region agent log
-    agentLog({ hypothesisId: 'H2', location: 'api/server.js:random:afterLoad', message: 'questions loaded', data: { count: questions.length } });
-    // #endregion
     // Filtrer selon les critères
     if (matiereId) {
       const categoriesPath = path.join(__dirname, '..', 'data', 'categories.json');
@@ -616,14 +621,8 @@ router.get('/random', (req, res) => {
     if (themeId) {
       questions = questions.filter(q => String(q.idTheme) === String(themeId));
     }
-    // #region agent log
-    agentLog({ hypothesisId: 'H3', location: 'api/server.js:random:afterFilters', message: 'after all filters', data: { count: questions.length, matiereId, levelId, categoryId, themeId } });
-    // #endregion
     if (!questions.length) {
       logger.warn('API', 'Aucune question trouvée avec critères', { matiereId, levelId, categoryId, themeId });
-      // #region agent log
-      agentLog({ hypothesisId: 'H4', location: 'api/server.js:random:404', message: 'returning 404 no match', data: { matiereId, levelId, categoryId, themeId } });
-      // #endregion
       return res.status(404).json({ error: 'Aucune question trouvée avec ces critères' });
     }
     

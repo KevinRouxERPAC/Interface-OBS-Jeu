@@ -16,6 +16,10 @@ const config = {
     .split(',')
     .map(o => o.trim()),
 
+  // Clé API protégeant les endpoints de contrôle (POST /command, /state, /shutdown).
+  // Laissée vide en développement/local = pas d'authentification.
+  apiKey: (process.env.API_KEY || '').trim(),
+
   // Google Sheets (base de données : importée en JSON locaux à chaque démarrage)
   googleSheets: {
     id: process.env.GOOGLE_SHEETS_ID,
